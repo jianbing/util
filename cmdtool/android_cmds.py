@@ -49,7 +49,7 @@ class GetPackageName(Cmd):
 
 class CountCPUMem(Cmd):
     def run(self):
-        from utils.tools.android_monitor import monitor
+        from utils.tools.monitor import monitor
         monitor.init(False, 10, 200, 3, 20, None)
         monitor.start()
 

@@ -1,9 +1,12 @@
 #! /usr/bin/env python
 # -*- coding: UTF-8 -*-
 from __future__ import unicode_literals
+
+import threading
 import time
 import os
 import sys
+import platform
 
 
 def chdir(adir=''):
@@ -21,23 +24,23 @@ def chdir(adir=''):
     return _chdir
 
 
-def retry(max_try=5):
+def retry(times=5):
     """一个装饰器，可以设置报错重试次数
 
-    :param max_try: 最多重试次数
+    :param times: 最多重试次数
     :return:
     """
     def _retry(func):
         def __retry(*args, **kwargs):
             temp_count = 0
-            while temp_count <= max_try:
+            while temp_count <= times:
                 try:
                     res = func(*args, **kwargs)
                     return res
                 except Exception:
                     print sys.exc_value
                     temp_count += 1
-                    if temp_count <= max_try:
+                    if temp_count <= times:
                         print '1秒后重试第{0}次'.format(temp_count)
                         time.sleep(1)
             else:
@@ -49,7 +52,7 @@ def retry(max_try=5):
     return _retry
 
 
-def count_run_time(func):
+def count_running_time(func):
     """装饰器函数，统计函数的运行耗时
 
     :param func:
@@ -106,3 +109,40 @@ def run_once(func):
     return _run_once
 
 
+def windows(func):
+    """如果非windows系统，抛出异常
+
+    :param func:
+    :return:
+    """
+
+    if not platform.platform().startswith('Windows'):
+        raise Exception("This function just can be used in windows.")
+    return func
+
+
+class Singleton(object):
+    """单例模式，python最佳的单例方式还是通过模块来实现
+
+    用法如下:
+        @Singleton
+        class YourClass(object):
+    """
+    def __init__(self, cls):
+        self.__instance = None
+        self.__cls = cls
+        self._lock = threading.Lock()
+
+    def __call__(self, *args, **kwargs):
+        self._lock.acquire()
+        if self.__instance is None:
+            self.__instance = self.__cls(*args, **kwargs)
+        self._lock.release()
+        return self.__instance
+
+
+if __name__ == '__main__':
+
+    import datetime
+    print datetime.datetime(2011,4,2,13,15,16)
+    print time.time()

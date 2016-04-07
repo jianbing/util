@@ -10,7 +10,7 @@ import sys
 import time
 import requests
 
-from utils.decorators import retry
+from utils.decorators import retry, windows
 
 """
 公共类库
@@ -60,7 +60,7 @@ def get_files_by_suffix(path, suffixes=("txt", "xml"), one_layer=True):
     return file_list
 
 
-@retry(max_try=5)
+@retry(times=5)
 def download_file(url, target_file, proxies=None, check_file=False, check_size=1000):
     """下载文件，通过requests库
 
@@ -135,7 +135,7 @@ def match_file(file1, file2):
         return True if file1md5.hexdigest() == file2md5.hexdigest() else False
 
 
-@retry(max_try=3)
+@retry(times=3)
 def get_url_filesize(url, proxies=None):
     """获取下载链接文件的大小，单位是KB
 
@@ -264,6 +264,49 @@ def search_keyword_from_dirs(path, keyword, suffix=("ejs",), one_layer=False):
             print afile
             print("#"*100)
             print("_"*100)
+
+
+@windows
+def is_port_used(port=5037, kill=False):
+    cmd = 'netstat -ano | findstr {} | findstr  LISTENING'.format(port)
+    print cmd
+    result = os.popen(cmd).read()
+
+    print result
+    if result != '':
+        pid = result.split()[-1]
+
+        result = os.popen('tasklist /FI "PID eq {0}'.format(pid)).read()
+
+        import chardet
+        print chardet.detect(result)
+        print result
+        position = result.rfind('=====\n'.encode())
+        program_name = result[position+5:].split()[0]
+        print "占用的程序是{}".format(program_name)
+
+        result = os.popen('wmic process where name="{0}" get executablepath'.format(program_name)).read()
+        print result
+        result = result.split('\r\n')
+
+        cmd = "explorer {0}".format(os.path.dirname(result[1]))
+        execute_cmd(cmd)  # 打开所在文件夹
+        if kill:
+            os.popen("taskkill /F /PID {0}".format(pid))   # 结束进程
+    else:
+        print '{}端口没有被占用'.format(port)
+
+
+def format_timestamp(timestamp=time.time(), fmt='%Y-%m-%d-%H-%M-%S'):
+    """时间戳转为指定的文本格式，默认是当前时间
+
+    :param timestamp:
+    :param fmt:
+        默认不需要填写，默认='%Y-%m-%d-%H-%M-%S'. 可以更改成自己想用的string
+        格式. 比如 '%Y.%m.%d.%H.%M.%S'
+
+    """
+    return time.strftime(fmt, time.localtime(timestamp))
 
 
 if __name__ == '__main__':
