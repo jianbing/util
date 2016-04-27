@@ -17,6 +17,14 @@ from utils.decorators import retry, windows
 """
 
 
+def d_(astr):
+    return astr.decode('gb2312')
+
+
+def e_(astr):
+    return astr.encode('gb2312')
+
+
 def explain(target, sleep=True):
     """显示帮助信息
 
@@ -29,6 +37,15 @@ def explain(target, sleep=True):
     help(target)
     if sleep:
         sleep_for(999)
+
+
+def profile_func(code):
+    import cProfile
+    cProfile.run(code, "prof.txt")
+    import pstats
+    p = pstats.Stats("prof.txt")
+    p.sort_stats("time").print_stats()
+
 
 
 def get_file_size(file_path):
@@ -212,9 +229,7 @@ def execute_cmd(cmd, print_result=False, shell=True):
     :return: stdout
     """
 
-    doing = subprocess.Popen(cmd, shell=shell, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-
-    stdout, stderr = doing.communicate()   # wait 如果输出量多，会死锁
+    stdout, stderr = subprocess.Popen(cmd, shell=shell, stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate()   # wait 如果输出量多，会死锁
 
     if print_result:
         print stdout
@@ -237,12 +252,14 @@ def append_root_dir(path):
     return os.path.join(get_root_dir(), path)
 
 
+@windows
 def get_desktop_dir():
     """获取桌面文件夹地址
 
     :return:
     """
-    return os.path.join(os.path.abspath(os.environ['HOMEPATH']), 'Desktop')
+    # return os.path.join(os.path.abspath(os.environ['HOMEPATH']), 'Desktop')
+    return os.path.join("C:", os.environ['HOMEPATH'], 'Desktop')
 
 
 def search_keyword_from_dirs(path, keyword, suffix=("ejs",), one_layer=False):
@@ -270,29 +287,34 @@ def search_keyword_from_dirs(path, keyword, suffix=("ejs",), one_layer=False):
 def is_port_used(port=5037, kill=False):
     cmd = 'netstat -ano | findstr {} | findstr  LISTENING'.format(port)
     print cmd
-    result = os.popen(cmd).read()
+    result = os.popen(e_(cmd)).read()
+    print d_(result)
 
-    print result
     if result != '':
-        pid = result.split()[-1]
+        try:
+            pid = result.split()[-1]
 
-        result = os.popen('tasklist /FI "PID eq {0}'.format(pid)).read()
+            result = os.popen('tasklist /FI "PID eq {0}'.format(pid)).read()
+            print d_(result)
 
-        import chardet
-        print chardet.detect(result)
-        print result
-        position = result.rfind('=====\n'.encode())
-        program_name = result[position+5:].split()[0]
-        print "占用的程序是{}".format(program_name)
+            position = result.rfind('====='.encode())
+            program_name = result[position+5:].split()[0]
+            print "占用的程序是{}".format(program_name)
 
-        result = os.popen('wmic process where name="{0}" get executablepath'.format(program_name)).read()
-        print result
-        result = result.split('\r\n')
+            result = os.popen('wmic process where name="{0}" get executablepath'.format(program_name)).read()
 
-        cmd = "explorer {0}".format(os.path.dirname(result[1]))
-        execute_cmd(cmd)  # 打开所在文件夹
-        if kill:
-            os.popen("taskkill /F /PID {0}".format(pid))   # 结束进程
+            result = result.split()
+            print "占用的程序所在位置：{}".format(d_(result[1]))
+
+            cmd = "explorer {0}".format(os.path.dirname(d_(result[1])))
+            execute_cmd(e_(cmd))  # 打开所在文件夹
+
+        except Exception as e:
+            print e
+        finally:
+             if kill:
+                print os.popen("taskkill /F /PID {0}".format(pid))   # 结束进程
+
     else:
         print '{}端口没有被占用'.format(port)
 
@@ -310,6 +332,10 @@ def format_timestamp(timestamp=time.time(), fmt='%Y-%m-%d-%H-%M-%S'):
 
 
 if __name__ == '__main__':
-    java_timestamp_to_py(1457341845438)
-    print int(time.time())*1000
-    java_timestamp_to_py(1458824031000)
+    # java_timestamp_to_py(1457341845438)
+    # print int(time.time())*1000
+    # java_timestamp_to_py(1458824031000)
+    #
+    # is_port_used()
+    # input()
+    is_port_used(kill=True)

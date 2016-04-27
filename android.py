@@ -154,7 +154,8 @@ def get_cpu_info(device_name, package_name):
     result = execute_cmd(command, print_result=False, shell=True)
     cpu = game_cpu = 0
     try:
-        # 也就是只有TOTAL的情况，在应用刚刚启动的时候，会是这样 ['3.6% TOTAL: 2% user + 1.6% kernel + 0% iowait + 0% softirq\r\r\n']
+        # 只有TOTAL的情况，在应用刚刚启动的时候，会是 ['3.6% TOTAL: 2% user + 1.6% kernel + 0% iowait + 0% softirq\r\r\n']
+
         if(len(result)) == 1:
             cpu = result[0][:result[0].find('%')].strip()
             game_cpu = 0
@@ -162,7 +163,7 @@ def get_cpu_info(device_name, package_name):
             # 54% 1527/com.funsplay.god.uc: 43% user + 10% kernel / faults: 6 minor 从中截取前边的54 应用占用cpu的百分比
             game_cpu = result[0][:result[0].find('%')].strip()
 
-            cpu = result[-1][:result[-1].find('%')].strip()      # cpu总体占用
+            cpu = result[-2][:result[-2].find('%')].strip()      # cpu总体占用
     except Exception as e:
         print e
         print result
