@@ -23,8 +23,8 @@ class SimpleProgressBar(object):
         value = next(self.__iterable)
         self.__num += 1
         result = "{0}% |{1}|\r".format(self.get_process(), "X" * 10).replace("X", ">", (int(self.get_process() / 10)))
-        sys.stderr.write(result)
-        sys.stderr.flush()
+        sys.stdout.write(result)
+        sys.stdout.flush()
         return value
 
 
@@ -37,6 +37,6 @@ if __name__ == "__main__":
             print 'find f'
             break
 
-        time.sleep(1)
+
 
     raw_input()

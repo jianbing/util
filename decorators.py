@@ -61,7 +61,7 @@ def count_running_time(func):
     def _count_running_time(*args, **kwargs):
         start = time.time()
         res = func(*args, **kwargs)
-        print('cost time :{0}'.format(time.time() - start))
+        print('cost time :{:.3f}'.format(time.time() - start))
         return res
     return _count_running_time
 

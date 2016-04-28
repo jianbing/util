@@ -322,7 +322,9 @@ class ADB(object):
 if __name__ == "__main__":
 
     import os
-    pass
+    a = ADB(adb_remote='192.168.1.120')
+    print a.current_package_name()
+    print a.current_activity_name()
 
 
 
