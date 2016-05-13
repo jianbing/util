@@ -18,6 +18,9 @@ from utils.decorators import retry, windows
 
 
 def d_(astr):
+    # print astr
+    # import chardet
+    # print chardet.detect(astr)
     return astr.decode('gb2312')
 
 
@@ -313,7 +316,7 @@ def is_port_used(port=5037, kill=False):
             print e
         finally:
              if kill:
-                print os.popen("taskkill /F /PID {0}".format(pid))   # 结束进程
+                print os.popen("taskkill /F /PID {0}".format(pid)).read()   # 结束进程
 
     else:
         print '{}端口没有被占用'.format(port)

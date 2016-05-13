@@ -6,7 +6,7 @@ import time
 import os
 import progressbar
 
-from utils.tools.simple_progressbar import SimpleProgressBar
+from utils.tools.minipb import MiniProgressBar
 
 __author__ = 'jianbing.g'
 """
@@ -80,7 +80,7 @@ class SFTPClient(object):
     def pro_download(self, path, download_dir):
 
         # pro = progressbar.ProgressBar()
-        for remote_path in SimpleProgressBar(self._get_files_recursion(path)):
+        for remote_path in MiniProgressBar(self._get_files_recursion(path)):
             self._download(remote_path, download_dir)
 
     def debug_download(self, path, download_dir):

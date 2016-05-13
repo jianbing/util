@@ -5,7 +5,7 @@ import sys
 import time
 
 
-class SimpleProgressBar(object):
+class MiniProgressBar(object):
 
     def __init__(self, target):
         self.__target = target
@@ -22,7 +22,7 @@ class SimpleProgressBar(object):
     def next(self):
         value = next(self.__iterable)
         self.__num += 1
-        result = "{0}% |{1}|\r".format(self.get_process(), "X" * 10).replace("X", ">", (int(self.get_process() / 10)))
+        result = "{0:<3}%|{1}|\r".format(self.get_process(), "#" * 15).replace("#", ">", (int(self.get_process() / 100*15)))
         sys.stdout.write(result)
         sys.stdout.flush()
         return value
@@ -30,7 +30,7 @@ class SimpleProgressBar(object):
 
 if __name__ == "__main__":
 
-    for i in SimpleProgressBar("abcdefghijk"):
+    for i in MiniProgressBar("abcdefghijk"):
 
         if i == 'f':
             print ''

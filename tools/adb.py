@@ -7,7 +7,7 @@ import re
 import os
 from PIL import Image
 
-from utils.common import get_desktop_dir
+from utils.common import get_desktop_dir, d_
 
 AUTO_INSTALL_PATH = r'C:\\Users\\Bing\\Desktop\\apks'
 
@@ -28,11 +28,12 @@ class ADB(object):
     def __init(self):
 
         self.__adb_name = "adb.exe" if os.name == 'nt' else "adb"
-        self.__output_coding = "gb2312" if os.name == 'nt' else "utf-8"
+        self.__output_coding = "utf-8"
         self.__findstr = "findstr" if os.name == 'nt' else "grep"
 
         if self.__adb_remote:
-            print os.popen("{} connect {}".format(self.__adb_name, self.__adb_remote)).read()
+
+            print subprocess.check_output("{} connect {}".format(self.__adb_name, self.__adb_remote)).decode(self.__output_coding)
 
         devices_info = self.devices()
         if not devices_info:
@@ -59,7 +60,14 @@ class ADB(object):
             print cmd
             print stdout.strip().decode(self.__output_coding)
         if stderr:
-            print stderr.decode(self.__output_coding)
+            try:
+                print stderr.decode(self.__output_coding)
+            except Exception as e:
+                print e
+                print '-'*100
+                print stderr
+                import chardet
+                print chardet.detect(stderr)
         return [i for i in stdout.splitlines() if i and not i.startswith("* daemon")]  # 过滤掉空的行，以及adb启动消息
 
     def adb_shell(self, *args):
@@ -325,7 +333,9 @@ if __name__ == "__main__":
     a = ADB(adb_remote='192.168.1.120')
     print a.current_package_name()
     print a.current_activity_name()
+    #
 
-
-
+    # result = subprocess.check_output("adb connect 192.168.1.120")
+    # import chardet
+    # print chardet.detect(result)
 

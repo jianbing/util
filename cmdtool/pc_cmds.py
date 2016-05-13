@@ -26,7 +26,7 @@ class Reboot(Cmd):
         ssh = paramiko.SSHClient()
         ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         ssh.connect(hostname=CONST_HOST, username=CONST_USERNAME, password=CONST_PWD)
-        stdin, stdout, stderr = ssh.exec_command("/etc/init.d/god_test_so restart")
+        stdin, stdout, stderr = ssh.exec_command("/etc/init.d/sg_dev_game restart")
         for line in stdout.read().splitlines():
             print(line)
         for line in stderr.read().splitlines():
