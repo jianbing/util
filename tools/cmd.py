@@ -2,21 +2,23 @@
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals
 
-import abc
 from collections import OrderedDict
 
 
-class Cmd(object):
-    __metaclass__ = abc.ABCMeta
+class _Cmd(object):
 
-    def __init__(self, title, hotkey=None, cmd_help=None):
+    def __init__(self, func, title, hotkey=None, args=None, cmd_help=None):
+        self.__func = func
         self.__title = title
         self.__hotkey = hotkey
+        self.__args = args
         self.__cmd_help = cmd_help
 
-    @abc.abstractmethod
     def run(self):
-        pass
+        if self.__args:
+            self.__func(*self.__args)
+        else:
+            self.__func()
 
     @property
     def hotkey(self):
@@ -27,7 +29,7 @@ class Cmd(object):
         return self.__title
 
 
-class __CmdCenter(object):
+class _CmdCenter(object):
 
     def __init__(self):
         self.cmds = OrderedDict()
@@ -44,18 +46,17 @@ class __CmdCenter(object):
 
     def show_cmds(self):
         for key in self.cmds:
-            print '{0}，{1}'.format(key, self.cmds[key].title)
+            print '{0}，{1}，hotkey:{2}'.format(key, self.cmds[key].title, self.cmds[key].hotkey)
 
     def get_choice(self):
-        choice = raw_input("请选择\n".encode('gb2312'))
+        choice = raw_input("Make a choice\n")
         return choice
 
     def work(self):
         while True:
             try:
-                print '-'*90
-                print '请选择指令'
-                print ''
+                print '-' * 80
+                print '请选择指令\n'
                 self.show_cmds()
 
                 while True:
@@ -71,18 +72,24 @@ class __CmdCenter(object):
                     self.cmds[choice].run()
                 else:
                     self.cmds_hotkey[choice].run()
-                print ''
-                print '执行完成'
-                print ''
+                print '\n执行完成\n'
             except KeyboardInterrupt:
-                print '手动退出'
+                print '手动退出\n'
+            except:
+                import traceback
+                traceback.print_exc()
 
-CmdCenter = __CmdCenter()
+CmdCenter = _CmdCenter()
 
 
+def cmdline(title, hotkey=None):
+    def _cmdline(func):
+        CmdCenter.add_cmd(_Cmd(func, title, hotkey))
 
-
-
+        def __cmdline(*args, **kwargs):
+            return func(*args, **kwargs)
+        return __cmdline
+    return _cmdline
 
 
 

@@ -50,7 +50,6 @@ def profile_func(code):
     p.sort_stats("time").print_stats()
 
 
-
 def get_file_size(file_path):
     """返回文件大小，单位是字节
 
@@ -176,13 +175,13 @@ def get_url_filesize(url, proxies=None):
 
 def svn_update(path):
     command = r'TortoiseProc.exe /command:update /path:"{0}" /closeonend:0'.format(path).encode('gb2312')
-    print command
+    print command.decode('gb2312')
     execute_cmd(command, True)
 
 
 def svn_revert(path):
     command = r'TortoiseProc.exe /command:revert /path:"{0}" /closeonend:0'.format(path).encode('gb2312')
-    print command
+    print command.decode('gb2312')
     execute_cmd(command, True)
 
 
@@ -192,15 +191,18 @@ def wait_to_exit(seconds):
     sleep_for(seconds)
 
 
-def compare_files():
-    a = raw_input('file1\n')
-    b = raw_input('file2\n')
+def compare_files(target=None):
+    if target:
+        command = 'BCompare.exe {0}'.format(target)
+    else:
+        a = raw_input('file1\n')
+        b = raw_input('file2\n')
 
-    command = 'BCompare.exe {0} {1}'.format(a,b)
+        command = 'BCompare.exe {0} {1}'.format(a,b)
     print command
     from config.config import CONST_BCOMPARE_DIR
     os.chdir(CONST_BCOMPARE_DIR)
-    execute_cmd(command)
+    execute_cmd(command.encode('gb2312'))
 
 
 def get_screen_scale(x, y):
@@ -265,18 +267,19 @@ def get_desktop_dir():
     return os.path.join("C:", os.environ['HOMEPATH'], 'Desktop')
 
 
-def search_keyword_from_dirs(path, keyword, suffix=("ejs",), one_layer=False):
+def search_keyword_from_dirs(path, keyword, suffix=("ejs",), one_layer=False, length=200):
     files = get_files_by_suffix(path, suffix, one_layer=one_layer)
     for afile in files:
         try:
             with codecs.open(afile, 'r', encoding='utf-8', errors='ignore') as f:
 
                 file_content = f.read()
-
-                position = file_content.find(keyword)
+                file_content_lower = file_content.lower()
+                position = file_content_lower.find(keyword.lower())
                 if position != -1:
-                    print("find in {0}".format(afile))
-                    print(file_content[position-100:position+100])
+                    print("Find in {0}".format(afile))
+                    start_pos = position-100 if position-100 > 0 else 0
+                    print(file_content[start_pos:position+length])
                     print("_"*100)
 
         except Exception as e:
@@ -338,7 +341,5 @@ if __name__ == '__main__':
     # java_timestamp_to_py(1457341845438)
     # print int(time.time())*1000
     # java_timestamp_to_py(1458824031000)
-    #
-    # is_port_used()
-    # input()
-    is_port_used(kill=True)
+
+    is_port_used(5037)
