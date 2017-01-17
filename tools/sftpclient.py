@@ -4,31 +4,14 @@
 import paramiko
 import time
 import os
-import progressbar
+# import progressbar
 
 from utils.tools.minipb import MiniProgressBar
 
-__author__ = 'jianbing.g'
 """
 SFTP到内网，可以下载服务器端配置
 更新日期：2016-1-9
 """
-# 创建sftp的另外的方式
-# ssh = paramiko.SSHClient()
-# ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-# ssh.connect(CONST_HOST,username=CONST_USERNAME, password=CONST_PWD)
-# sftp = ssh.open_sftp()
-# print(type(sftp))
-# print sftp.listdir('/data/www/god/test/socket/conf/config')
-
-# get_files的另外版本
-# def _get_files_yield(path,result=[]):
-#     for i in sftp.listdir(path):
-#         if i.find('.') != -1:
-#             result.append("{0}{1}".format(path,i))
-#         else:
-#             _get_files_yield("{0}{1}/".format(path,i))
-#     return result
 
 
 class SFTPClient(object):
@@ -85,9 +68,9 @@ class SFTPClient(object):
 
     def debug_download(self, path, download_dir):
         for remote_path in self._get_files_yield(path):
-            print 'start to download {0}'.format(remote_path)
+            print('start to download {0}'.format(remote_path))
             self._download(remote_path, download_dir)
-            print 'finish'
+            print('finish')
 
     def get_file_update_time(self, path):
         result = self.sftp.listdir_attr(path)

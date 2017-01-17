@@ -1,6 +1,5 @@
 #! /usr/bin/env python
 # -*- coding: UTF-8 -*-
-from __future__ import unicode_literals
 
 import threading
 import time
@@ -9,16 +8,16 @@ import sys
 import platform
 
 
-def chdir(adir=''):
+
+def chdir(dir_path=''):
     """自动调用os.chdir
 
-    :param adir:
+    :param dir_path:
     :return:
     """
     def _chdir(func):
         def __chdir(*args, **kwargs):
-            # print adir
-            os.chdir(adir)
+            os.chdir(dir_path)
             return func(*args, **kwargs)
         return __chdir
     return _chdir
@@ -32,19 +31,19 @@ def retry(times=5):
     """
     def _retry(func):
         def __retry(*args, **kwargs):
-            temp_count = 0
-            while temp_count <= times:
+            retry_times = 0
+            while retry_times <= times:
                 try:
                     res = func(*args, **kwargs)
                     return res
                 except Exception:
-                    print sys.exc_value
-                    temp_count += 1
-                    if temp_count <= times:
-                        print '1秒后重试第{0}次'.format(temp_count)
+                    print(sys.exc_info()[1])
+                    retry_times += 1
+                    if retry_times <= times:
+                        print('1秒后重试第{0}次'.format(retry_times))
                         time.sleep(1)
             else:
-                print 'max try,can not fix'
+                print('max try,can not fix')
                 import traceback
                 traceback.print_exc()
                 return None
@@ -61,7 +60,7 @@ def count_running_time(func):
     def _count_running_time(*args, **kwargs):
         start = time.time()
         res = func(*args, **kwargs)
-        print('cost time :{:.3f}'.format(time.time() - start))
+        print(('cost time :{:.3f}'.format(time.time() - start)))
         return res
     return _count_running_time
 
@@ -74,17 +73,22 @@ def auto_next(func):
     """
     def _auto_next(*args, **kwargs):
         g = func(*args, **kwargs)
-        g.next()
+        next(g)
         return g
     return _auto_next
 
 
 def check_adb(func):
     def _check_adb(*args, **kwargs):
-        from utils import android
-        result = android.get_adb_devices()
+
+        @run_once
+        def get_adb_devices():
+            from utils.common import execute_cmd
+            return execute_cmd('adb devices')
+
+        result = get_adb_devices()
         if(len(result)) < 2:
-            print '当前没有连接上手机'
+            print('当前没有连接上手机')
             return None
         return func(*args, **kwargs)
     return _check_adb
@@ -97,7 +101,7 @@ def run_once(func):
     :return:
     """
     def _run_once(*args, **kwargs):
-        if (not _run_once.result) or (time.time()-_run_once.last_update_time > 60):
+        if (not _run_once.result) or (time.time() - _run_once.last_update_time > 60):
             # print 'no result or >60'
             _run_once.result = func(*args, **kwargs)
             _run_once.last_update_time = time.time()
@@ -128,6 +132,7 @@ class Singleton(object):
         @Singleton
         class YourClass(object):
     """
+
     def __init__(self, cls):
         self.__instance = None
         self.__cls = cls
@@ -144,5 +149,5 @@ class Singleton(object):
 if __name__ == '__main__':
 
     import datetime
-    print datetime.datetime(2011,4,2,13,15,16)
-    print time.time()
+    print(datetime.datetime(2011, 4, 2, 13, 15, 16))
+    print(time.time())

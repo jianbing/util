@@ -1,7 +1,7 @@
 #! /usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-import Queue
+import queue
 import threading
 import time
 import types
@@ -24,7 +24,7 @@ class TaskCenter(object):
         self.__target = target
         self.__param_list = param_list
         self.__thread_num = thread_num
-        self.__param_queue = Queue.Queue()
+        self.__param_queue = queue.Queue()
         self.__allow_append_param = allow_append_param
         self.__thread_dict = dict()
 
@@ -50,7 +50,7 @@ class TaskCenter(object):
         while True:
             args = self.__param_queue.get()
             if args:
-                if isinstance(args, types.TupleType):
+                if isinstance(args, tuple):
                     self.__target(*args)
                 else:
                     self.__target(args)
@@ -73,9 +73,9 @@ class TaskCenter(object):
         for i in self.__thread_dict:
             self.__thread_dict[i].join()
 
-    def append_params(self, alist):
+    def append_params(self, param_list):
         if self.__allow_append_param:
-            for i in alist:
+            for i in param_list:
                 self.__param_queue.put(i)
         else:
             raise Exception("不可以添加新的参数列表")
@@ -90,7 +90,7 @@ if __name__ == '__main__':
     from utils.decorators import retry
 
     def to_download(astr):
-        print "{0}___________".format(astr)
+        print("{0}___________".format(astr))
         time.sleep(1)
 
     start_time = time.time()
@@ -106,8 +106,8 @@ if __name__ == '__main__':
     center.start()
     center.wait_to_finish()
 
-    print 'finish'
-    print time.time()-start_time
+    print('finish')
+    print(time.time()-start_time)
 
 
 
