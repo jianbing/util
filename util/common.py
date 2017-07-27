@@ -1,20 +1,49 @@
 #! /usr/bin/env python
 # -*- coding: UTF-8 -*-
-
-import codecs
 import hashlib
-import os
 import subprocess
-import sys
-import time
 import requests
-from contextlib import contextmanager
-from utils.decorators import retry, windows
-from utils.tools.file import File
+from util.decorator import *
+from util.tool.file import File
 
-"""
-公共类库
-"""
+
+def run_cmd(cmd, print_result=False, shell=True):
+    """执行cmd命令，返回结果
+
+    :param cmd:
+    :param print_result: 是否打印，默认False
+    :param shell:
+    :return: stdout
+    """
+
+    stdout, stderr = subprocess.Popen(cmd, shell=shell, stdout=subprocess.PIPE,
+                                      stderr=subprocess.PIPE).communicate()  # wait 如果输出量多，会死锁
+
+    if print_result:
+        print(stdout)
+
+    if stderr:
+        print(stderr)
+    result = [i.decode('utf-8') for i in stdout.splitlines()]
+    return result
+
+
+def get_local_ip():
+    """获取本地ip地址
+
+    :return:
+    """
+    import socket
+    return socket.gethostbyname(socket.gethostname())
+
+
+@windows
+def get_desktop_dir():
+    """获取桌面文件夹地址
+
+    :return:
+    """
+    return os.path.join("C:", os.environ['HOMEPATH'], 'Desktop')
 
 
 def max_n(a_list, num):
@@ -68,16 +97,16 @@ def get_files_by_suffix(path, suffixes=("txt", "xml"), traverse=True):
     file_list = []
     for root, dirs, files in os.walk(path):
         for file in files:
-            file_suffix = os.path.splitext(file)[1][1:].lower()   # 后缀名
+            file_suffix = os.path.splitext(file)[1][1:].lower()  # 后缀名
             if file_suffix in suffixes:
                 file_list.append(os.path.join(root, file))
-        if traverse:
+        if not traverse:
             return file_list
 
     return file_list
 
 
-def get_files_by_suffix_ex(path: str, suffixes: tuple=("txt", "xml"), traverse: bool=True):
+def get_files_by_suffix_ex(path: str, suffixes: tuple = ("txt", "xml"), traverse: bool = True):
     """从path路径下，找出全部指定后缀名的文件，支持1层目录，或者整个目录遍历
 
     :param path: 根目录
@@ -88,7 +117,7 @@ def get_files_by_suffix_ex(path: str, suffixes: tuple=("txt", "xml"), traverse: 
     file_list = []
     for root, dirs, files in os.walk(path):
         for file in files:
-            file_suffix = os.path.splitext(file)[1][1:].lower()   # 后缀名
+            file_suffix = os.path.splitext(file)[1][1:].lower()  # 后缀名
             if file_suffix in suffixes:
                 file_list.append(File(os.path.join(root, file)))
         if traverse:
@@ -97,33 +126,10 @@ def get_files_by_suffix_ex(path: str, suffixes: tuple=("txt", "xml"), traverse: 
     return file_list
 
 
-@retry(times=5)
-def download_file(url, target_file, proxies=None, check_file=False, check_size=1000):
-    """下载文件，通过requests库
-
-    :param url: 目标url
-    :param target_file:下载到本地的地址
-    :param proxies: 代理
-    :param check_file: 是否检查已经下载的文件的大小
-    :param check_size: 最小文件大小（字节）
-    :return:
-    """
-
-    print(('start to download {0}'.format(url)))
-
-    r = requests.get(url, stream=True, proxies=proxies, timeout=5)
-
-    with open(target_file, 'wb') as f:
-        for chunk in r.iter_content(chunk_size=1024):
-            f.write(chunk)
-    if check_file:
-        if get_file_size(target_file) < check_size:
-            raise Exception("fileSize Error")
-    print('finish download')
-
-
-def sleep_for(times):
-    time.sleep(times)
+def rename(name):
+    return name.replace("sg", "灵趣").replace("0", "零").replace("1", "一").replace("2", "二").replace("3", "三").replace("4",
+                                                                                                                    "四").replace(
+        "5", "五").replace("6", "六").replace("7", "七").replace("8", "八").replace("9", "九")
 
 
 def unzip(file_path):
@@ -139,6 +145,29 @@ def unzip(file_path):
     zip_file = zipfile.ZipFile(file_path, 'r')
     zip_file.extractall(folder)
     zip_file.close()
+
+
+def format_timestamp(timestamp=time.time(), fmt='%Y-%m-%d-%H-%M-%S'):
+    """时间戳转为指定的文本格式，默认是当前时间
+
+    :param timestamp:
+    :param fmt: 默认不需要填写，默认='%Y-%m-%d-%H-%M-%S'. 可以更改成自己想用的string格式. 比如 '%Y.%m.%d.%H.%M.%S'
+
+    """
+    return time.strftime(fmt, time.localtime(timestamp))
+
+
+def is_chinese(unicode_text):
+    """检测unicode文本是否为中文
+
+    :param unicode_text:
+    :return:
+    """
+    for uchar in unicode_text:
+        if uchar >= '\u4e00' and not uchar > '\u9fa5':
+            return True
+    else:
+        return False
 
 
 def java_timestamp_to_py(java_timestamp):
@@ -173,7 +202,7 @@ def match_file(file1, file2):
 
 
 @retry(times=3)
-def get_url_filesize(url, proxies=None):
+def get_url_file_size(url, proxies=None):
     """获取下载链接文件的大小，单位是KB
 
     :param proxies:
@@ -182,7 +211,7 @@ def get_url_filesize(url, proxies=None):
     """
     r = requests.head(url=url, proxies=proxies, timeout=3.0)
 
-    while r.is_redirect:    # 如果有重定向
+    while r.is_redirect:  # 如果有重定向
         # print 'got'
         # print r.headers['Location']
         r = requests.head(url=r.headers['Location'], proxies=proxies, timeout=3.0)
@@ -194,115 +223,38 @@ def get_url_filesize(url, proxies=None):
 def svn_update(path):
     command = r'TortoiseProc.exe /command:update /path:"{0}" /closeonend:0'.format(path)
     print(command)
-    execute_cmd(command, True)
+    run_cmd(command, True)
 
 
 def svn_revert(path):
     command = r'TortoiseProc.exe /command:revert /path:"{0}" /closeonend:0'.format(path)
     print(command)
-    execute_cmd(command, True)
+    run_cmd(command, True)
 
 
-def wait_to_exit(seconds):
-    print("")
-    print("{0}秒后自动退出".format(seconds))
-    sleep_for(seconds)
+@retry(times=5)
+def download_file(url, target_file, proxies=None, check_file=False, check_size=1000):
+    """下载文件，通过requests库
 
-
-def compare_files(target=None):
-    if target:
-        command = 'BCompare.exe {0}'.format(target)
-    else:
-        a = input('file1\n')
-        b = input('file2\n')
-
-        command = 'BCompare.exe {0} {1}'.format(a, b)
-    print(command)
-    from config.config import CONST_BCOMPARE_DIR
-    os.chdir(CONST_BCOMPARE_DIR)
-    execute_cmd(command.encode('gb2312'))
-
-
-def get_screen_scale(x, y):
-    """通过屏幕分辨率，返回屏幕比例
-
-    :param x:
-    :param y:
+    :param url: 目标url
+    :param target_file:下载到本地的地址
+    :param proxies: 代理
+    :param check_file: 是否检查已经下载的文件的大小
+    :param check_size: 最小文件大小（字节）
     :return:
     """
-    scale = int(y) / int(x)
-    if scale == 16 / 9:
-        return 16, 9
-    elif scale == 4 / 3:
-        return 4, 3
-    elif scale == 15 / 9:
-        return 15, 9
-    elif scale == 16 / 10:
-        return 16, 10
-    else:
-        raise Exception("None scale match")
 
+    print('start to download {0}'.format(url))
 
-def execute_cmd(cmd, print_result=False, shell=True):
-    """执行cmd命令，返回结果
+    r = requests.get(url, stream=True, proxies=proxies, timeout=5)
 
-    :param cmd:
-    :param print_result: 是否打印，默认False
-    :param shell:
-    :return: stdout
-    """
-
-    stdout, stderr = subprocess.Popen(cmd, shell=shell, stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate()   # wait 如果输出量多，会死锁
-
-    if print_result:
-        print(stdout)
-    if stderr:
-        print(stderr)
-    result = stdout.splitlines()
-    return result
-
-
-def get_root_dir():
-    """获取程序入口文件所在的目录
-
-    :return:
-    """
-    return os.path.dirname(os.path.realpath(sys.argv[0]))
-
-
-def append_root_dir(path):
-    return os.path.join(get_root_dir(), path)
-
-
-@windows
-def get_desktop_dir():
-    """获取桌面文件夹地址
-
-    :return:
-    """
-    return os.path.join("C:", os.environ['HOMEPATH'], 'Desktop')
-
-
-def search_keyword_from_dirs(path, keyword, suffix=("ejs",), traverse=True, length=200):
-    files = get_files_by_suffix(path, suffix, traverse=traverse)
-    for file in files:
-        try:
-            with codecs.open(file, 'r', encoding='utf-8', errors='ignore') as f:
-
-                file_content = f.read()
-                file_content_lower = file_content.lower()
-                position = file_content_lower.find(keyword.lower())
-                if position != -1:
-                    print(("Find in {0}".format(file)))
-                    start_pos = position - 100 if position - 100 > 0 else 0
-                    print((file_content[start_pos:position + length]))
-                    print(("_" * 100))
-
-        except Exception as e:
-            print(e)
-            print(file)
-            print(("#" * 100))
-            print(("_" * 100))
+    with open(target_file, 'wb') as f:
+        for chunk in r.iter_content(chunk_size=2048):
+            f.write(chunk)
+    if check_file:
+        if get_file_size(target_file) < check_size:
+            raise Exception("fileSize Error")
+    print('finish download')
 
 
 @windows
@@ -330,7 +282,7 @@ def is_port_used(port=5037, kill=False):
             print("占用的程序所在位置：{}".format(result[1]))
 
             cmd = "explorer {0}".format(os.path.dirname(result[1]))
-            execute_cmd(cmd)  # 打开所在文件夹
+            run_cmd(cmd)  # 打开所在文件夹
 
         except Exception:
             import traceback
@@ -339,46 +291,59 @@ def is_port_used(port=5037, kill=False):
             if kill:
                 if not pid:
                     raise Exception("pid is None")
-                print(os.popen("taskkill /F /PID {0}".format(pid)).read())   # 结束进程
+                print(os.popen("taskkill /F /PID {0}".format(pid)).read())  # 结束进程
 
     else:
         print('{}端口没有被占用'.format(port))
 
 
-def format_timestamp(timestamp=time.time(), fmt='%Y-%m-%d-%H-%M-%S'):
-    """时间戳转为指定的文本格式，默认是当前时间
+def get_screen_scale(x, y):
+    """通过屏幕分辨率，返回屏幕比例
 
-    :param timestamp:
-    :param fmt:
-        默认不需要填写，默认='%Y-%m-%d-%H-%M-%S'. 可以更改成自己想用的string
-        格式. 比如 '%Y.%m.%d.%H.%M.%S'
-
-    """
-    return time.strftime(fmt, time.localtime(timestamp))
-
-
-def is_chinese(unicode_text):
-    """检测unicode文本是否为中文
-
-    :param unicode_text:
+    :param x:
+    :param y:
     :return:
     """
-    for uchar in unicode_text:
-        if uchar >= '\u4e00' and not uchar > '\u9fa5':
-            return True
+    scale = int(y) / int(x)
+    if scale == 16 / 9:
+        return 16, 9
+    elif scale == 4 / 3:
+        return 4, 3
+    elif scale == 15 / 9:
+        return 15, 9
+    elif scale == 16 / 10:
+        return 16, 10
     else:
-        return False
+        raise Exception("None scale match")
 
 
-@contextmanager
-def count_time():
-    start_time = time.time()
-    print("开始执行")
-    yield
-    print("执行结束，耗时{}".format(time.time() - start_time))
+def get_root_dir():
+    """获取程序入口文件所在的目录
+
+    :return:
+    """
+    return os.path.dirname(os.path.realpath(sys.argv[0]))
 
 
-if __name__ == '__main__':
+def search_keyword_from_dirs(path, keyword, suffix=("txt", "xml"), traverse=True, length=100):
+    files = get_files_by_suffix(path, suffix, traverse=traverse)
+    print("发现{}个文件".format(len(files)))
+    for file in files:
+        try:
+            with open(file, 'r', encoding='utf-8', errors='ignore') as f:
 
-    with count_time():
-        print("hi")
+                content = f.read().lower()
+                position = content.find(keyword.lower())
+
+                if position != -1:
+                    print("Find in {0}".format(file))
+                    start = position - length if position - length > 0 else 0
+                    end = position + length if position + length < len(content) else len(content)
+                    print(content[start:end])
+                    print("_" * 100)
+
+        except Exception as e:
+            print(e)
+            print(file)
+            print(("#" * 100))
+            print(("_" * 100))

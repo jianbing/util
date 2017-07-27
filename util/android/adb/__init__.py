@@ -1,19 +1,15 @@
 #! /usr/bin/env python
 # -*- coding: UTF-8 -*-
-import logging
-import re
 import os
-import sys
-import time
+import re
 import subprocess
+import time
 from PIL import Image
-from utils.common import get_desktop_dir
-from utils import logger
+from util import log
+from util.common import get_desktop_dir, is_chinese, run_cmd
 
 
-AUTO_INSTALL_PATH = r'C:\\Users\\Bing\\Desktop\\apks'
-
-# adb install 安装错误常见列表
+# adb install 常见安装错误
 errors = {'INSTALL_FAILED_ALREADY_EXISTS': '程序已经存在',
           'INSTALL_DEVICES_NOT_FOUND': '找不到设备',
           'INSTALL_FAILED_DEVICE_OFFLINE': '设备离线',
@@ -48,41 +44,42 @@ errors = {'INSTALL_FAILED_ALREADY_EXISTS': '程序已经存在',
           }
 
 
-class ADB(object):
+class ADB:
 
-    def __init__(self, serial=None, adb_remote=None, debug=False):
+    def __init__(self, serial=None, adb_remote=None):
 
-        self.__serial = serial
-        self.__debug = debug
-        self.__adb_remote = adb_remote
-        self.__adb_name = ""
-        self.__findstr = ""
-        self.__init()
+        self._serial = serial
+        self._adb_remote = adb_remote
+        self._adb_name = ""
+        self._findstr = ""
+        self._init_adb()
 
-    def __init(self):
+    def _init_adb(self):
 
-        self.__adb_name = "adb.exe" if os.name == 'nt' else "adb"
-        self.__findstr = "findstr" if os.name == 'nt' else "grep"
+        self._adb_name = "adb.exe" if os.name == 'nt' else "adb"
+        self._findstr = "findstr" if os.name == 'nt' else "grep"
 
-        if not self.__debug:
-            logger.set_level(logging.INFO)
+        if self._adb_remote:
+            log.info(subprocess.check_output("{} connect {}".format(self._adb_name, self._adb_remote)))
 
-        if self.__adb_remote:
+        if not self._serial:
+            devices_info = self.devices()
+            log.debug(devices_info)
 
-            logger.info(subprocess.check_output("{} connect {}".format(self.__adb_name, self.__adb_remote)))
-
-        devices_info = self.devices()
-
-        logger.debug(devices_info)
-
-        if not devices_info:
-            raise Exception("no phone is connecting.")
-        if not self.__serial:
+            if not devices_info:
+                raise Exception("no phone is connecting.")
             if len(devices_info) > 1:
-                logger.error(devices_info)
-                raise Exception("more than one devices,you should specify the serialno.")
+                log.error(devices_info)
+                print("当前通过数据线连接的手机有：")
+                for i in devices_info:
+                    print(i)
+                print("")
+                raise Exception("同时有多个手机连接着电脑，需要指定serialno.")
             else:
-                self.__serial = devices_info[0]
+                self._serial = devices_info[0]
+
+    def is_connect(self):
+        return self.serial in self.devices()
 
     def adb(self, *args):
         """adb命令执行入口
@@ -91,18 +88,17 @@ class ADB(object):
         :return:
         """
 
-        if self.__serial:
-            cmd = " ".join([self.__adb_name, '-s', self.__serial] + list(args))
+        if self._serial:
+            cmd = " ".join([self._adb_name, '-s', self._serial] + list(args))
         else:
-            cmd = " ".join([self.__adb_name] + list(args))
+            cmd = " ".join([self._adb_name] + list(args))
 
         stdout, stderr = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate()
-
-        logger.debug("cmd is {}".format(cmd))
-        logger.debug("stdout is {}".format(stdout.strip()))
+        log.debug("cmd is {}".format(cmd))
+        log.debug("stdout is {}".format(stdout.strip()))
 
         if stderr:
-            logger.error(stderr)
+            log.error(stderr)
 
         result = [i.decode() for i in stdout.splitlines()]
         return [i for i in result if i and not i.startswith("* daemon")]  # 过滤掉空的行，以及adb启动消息
@@ -116,11 +112,20 @@ class ADB(object):
         args = ['shell'] + list(args)
         return self.adb(*args)
 
+    def tap(self, x, y):
+        self.adb_shell("input tap {} {}".format(x, y))
+
+    def swipe(self, sx, sy, ex, ey, steps=100):
+        self.adb_shell("input swipe {} {} {} {} {}".format(sx, sy, ex, ey, steps))
+
+    def long_press(self, x, y, steps=1000):
+        self.adb_shell("input swipe {} {} {} {} {}".format(x, y, x, y, steps))
+
     def devices(self):
         result = self.adb('devices')
         if len(result) == 1:
             return []
-        logger.debug(result)
+        log.debug(result)
         return [i.split()[0] for i in result if not i.startswith('List') and not i.startswith("adb")]
 
     @property
@@ -136,7 +141,7 @@ class ADB(object):
 
     @property
     def adb_remote(self):
-        return self.__adb_remote
+        return self._adb_remote
 
     @property
     def version(self):
@@ -148,7 +153,7 @@ class ADB(object):
 
     @property
     def serial(self):
-        return self.__serial
+        return self._serial
 
     @property
     def android_version(self):
@@ -166,12 +171,12 @@ class ADB(object):
         :return:
         """
         start_time = time.time()
-        print("开始截图...")
+        log.info("开始截图...")
         self.adb_shell("screencap -p /sdcard/screenshot.png")
         temp = time.strftime("%Y-%m-%d-%H-%M-%S", time.localtime(start_time))
         filename = '{0}-{1}.png'.format(temp, info)
         self.adb('pull /sdcard/screenshot.png {}\{}'.format(screenshot_dir, filename))
-        print('截图已保存')
+        log.info('截图已保存')
         return os.path.join(screenshot_dir, filename)
 
     def screenshot_ex(self, screenshot_dir, info='shot', compress=True, openfile=True):
@@ -199,12 +204,14 @@ class ADB(object):
                 cmd = r"mspaint {0}".format(new_file)   # 用画图工具打开
                 os.popen(cmd)
 
-    def get_mem_using(self, package_name):
+    def get_mem_using(self, package_name=None):
         """获取内存占用
 
         :param package_name: app的包名
-        :return: 返回Total内存值 eg ['TOTAL', '286783']
+        :return: 返回app的内存总占用，单位MB
         """
+        if not package_name:
+            package_name = self.current_package_name
         result = self.adb_shell("dumpsys meminfo {}".format(package_name))
         info = re.search('TOTAL\W+\d+', str(result)).group()
         result = ''
@@ -213,53 +220,47 @@ class ADB(object):
         except Exception as e:
             print(info)
             print(e)
-        return result
+        return int(int(result[-1]) / 1000)
 
-    def get_cpu_using(self, package_name):
-        """获取cpu占用
+    def get_cpu_using(self):
+        """获取手机当前CPU的总占用
 
-        :param package_name:
         :return:
         """
-        cmd = 'dumpsys cpuinfo |{} "{} TOTAL"'.format(self.__findstr, package_name)
-        print(cmd)
-        result = self.adb_shell(cmd)
-        print(result)
-        cpu = game_cpu = 0
-        try:
-            # 只有TOTAL的情况，在应用刚刚启动的时候
-            # ['3.6% TOTAL: 2% user + 1.6% kernel + 0% iowait + 0% softirq\r\r\n']
-            if(len(result)) == 1:
-                cpu = result[0][:result[0].find('%')].strip()
-                game_cpu = 0
-            else:
-                # 54% 1527/com.funsplay.god.uc: 43% user + 10% kernel / faults: 6 minor 从中截取前边的54 应用占用cpu的百分比
-                game_cpu = result[0][:result[0].find('%')].strip()
-                cpu = result[-1][:result[-1].find('%')].strip()      # cpu总体占用
-        except Exception as e:
-            print(e)
-            print(result)
-        return cpu, game_cpu
 
+        cmd = 'dumpsys cpuinfo |{} "TOTAL"'.format(self._findstr)
+        result = self.adb_shell(cmd)
+        assert len(result) == 1
+        result = result[0]
+        cpu = 0
+        try:
+            cpu = float(result[:result.find('%')].strip())
+        except:
+            log.error(result)
+        return cpu
+
+    @property
     def current_package_info(self):
         result = self.adb_shell('dumpsys activity top')
         for line in result:
             if line.strip().startswith('ACTIVITY'):
                 return line.split()[1].split('/')
 
+    @property
     def current_package_name(self):
         """获取当前运行app包名
 
         :return:
         """
-        return self.current_package_info()[0]
+        return self.current_package_info[0]
 
+    @property
     def current_activity_name(self):
         """获取当前运行activity
 
         :return:
         """
-        return self.current_package_info()[1]
+        return self.current_package_info[1]
 
     def pull_file(self, remote, local):
         return self.adb('pull', remote, local)
@@ -269,12 +270,12 @@ class ADB(object):
 
     @staticmethod
     def start_server():
-        logger.debug('adb start-server')
-        logger.info(os.popen('adb.exe start-server').read())
+        log.debug('adb start-server')
+        log.info(os.popen('adb.exe start-server').read())
 
     @staticmethod
     def kill_server():
-        logger.debug('adb kill-server')
+        log.debug('adb kill-server')
         os.popen('adb.exe kill-server')
 
     @staticmethod
@@ -282,41 +283,75 @@ class ADB(object):
         """从apk安装包中，获取包名
 
         :param apk_path: apk文件位置
-        :return:从 package: name='com.funsplay.god.anzhi' versionCode='10300' versionName='1.3.0'中截取包名
+        :return:
         """
-        result = os.popen("aapt dump badging {0}".format(apk_path)).read()
-        return result[15:result.index('\' versionCode')]
+        return ADB.get_apk_info_from_apk_file(apk_path)[0]
 
-    def auto_install(self, path=AUTO_INSTALL_PATH):
-        """自动安装指定目录下的全部apk，如果已经存在，则先卸载
+    @staticmethod
+    def get_apk_info_from_apk_file(apk_path):
+        """从apk安装包中，获取包名，和版本信息
+
+        :param apk_path: apk文件位置
+        :return:从 package: name='com.funsplay.god.anzhi' versionCode='10300' versionName='1.3.0' 中获取信息
+        """
+        result = "\n".join(run_cmd('aapt dump badging "{0}"'.format(apk_path)))
+        package_name = result[result.index("name=\'") + 6:result.index("\' versionCode")]
+        version_code = result[result.index("versionCode=\'") + 13:result.index("\' versionName")]
+        version_name = result[result.index("versionName=\'") + 13:result.index("\' platformBuildVersionName")]
+        return package_name, version_code, version_name
+
+    def auto_install(self, path):
+        """path可以是目录，自动安装目录下的全部apk，如果已经存在，则先卸载
+           path也可以是具体apk路径
 
         :param path:
         :return:
         """
         if not os.path.exists(path):
-            print('目录不存在')
+            print('目录或者不存在')
             return
-        print("当前连接的手机是：{0}".format(self.__serial))
 
-        for filename in os.listdir(path):
-            if os.path.splitext(filename)[1].lower() == '.apk':
-                print("发现apk文件：{0}".format(filename))
+        if os.path.isdir(path):
+            print("当前连接的手机是：{0}".format(self._serial))
+            for filename in os.listdir(path):
+                if os.path.splitext(filename)[1].lower() == '.apk':
+                    self.install(os.path.join(path, filename))
+        else:
+            if os.path.splitext(path)[1].lower() == '.apk':
+                self.install(path)
+            else:
+                print("文件后缀名不是apk")
 
-                apk_path = '{0}\{1}'.format(path, filename)
-                package_name = self.get_package_name_from_apk(apk_path)
-                print('apk安装包的包名是：{0}'.format(package_name))
-
-                if self.check_install(package_name):
-                    print('手机中已经安装了该应用，准备移除')
-                    self.uninstall(package_name)
-                else:
-                    print('手机未安装该应用')
-
-                print("开始安装：{0}".format(os.path.normpath(filename)))
-                self.adb('install {}\{}'.format(path, filename))
         print('任务完成')
 
-    def check_install(self, package_name):
+    def install(self, apk_path):
+        print("发现apk文件：{0}".format(apk_path))
+        dir_path, filename = os.path.split(apk_path)
+        rename = False
+        raw_apk_path = apk_path
+        if is_chinese(filename):
+            print("apk文件名存在中文，进行重命名")
+            new_apk_path = os.path.join(dir_path, "{}.apk".format(int(time.time())))
+            os.rename(raw_apk_path, new_apk_path)
+            apk_path = new_apk_path
+            rename = True
+
+        package_name = self.get_package_name_from_apk(apk_path)
+        print('apk安装包的包名是：{0}'.format(package_name))
+
+        if self.is_install(package_name):
+            print('手机中已经安装了该应用，准备移除')
+            self.uninstall(package_name)
+        else:
+            print('手机未安装该应用')
+
+        print("开始安装：{0}".format(apk_path))
+        self.adb('install {}'.format(apk_path))
+
+        if rename:
+            os.rename(apk_path, raw_apk_path)
+
+    def is_install(self, package_name):
         """检查手机中是否已经安装了某个apk
 
         :param package_name: 应用的包名
@@ -338,11 +373,12 @@ class ADB(object):
         :param path:导出目录
         :return:
         """
-        result = self.adb_shell("pm path", self.current_package_name())
+        result = self.adb_shell("pm path", self.current_package_name)
         apk_path = result[0].strip().replace('package:', '')
         print('apk位置是：{0}'.format(apk_path))
         print('开始导出apk')
-        self.adb("pull {0} {1}\{2}".format(apk_path, path, os.path.split(apk_path)[1]))
+        apk_name = "{}{}.apk".format(self.current_package_name, time.strftime("%Y-%m-%d-%H-%M-%S", time.localtime(time.time())))
+        self.adb("pull {0} {1}\{2}".format(apk_path, path, apk_name))
         print("备份完成")
 
     def start_monkey(self, pct_touch=100, pct_motion=0, throttle=200, v='-v -v', times=100, logfile=None):
@@ -352,7 +388,7 @@ class ADB(object):
 
         cmd = [
             'monkey',
-            '-p {}'.format(self.current_package_name()),
+            '-p {}'.format(self.current_package_name),
             '--pct-touch {}'.format(pct_touch),
             '--pct-motion {}'.format(pct_motion),
             '--throttle {}'.format(throttle),
@@ -366,7 +402,7 @@ class ADB(object):
         self.adb_shell(*iter(cmd))
 
     def stop_monkey(self):
-        result = self.adb_shell("ps|{} monkey".format(self.__findstr))
+        result = self.adb_shell("ps|{} monkey".format(self._findstr))
         if result:
             pid = result[0].split()[1]
             self.adb_shell('kill', pid)
@@ -380,10 +416,10 @@ class ADB(object):
     def start_app(self, component):
         self.adb_shell("am start -n {}".format(component))
 
-    def stop_app(self,package):
+    def stop_app(self, package):
         self.adb_shell('am force-stop {}'.format(package))
+
 
 if __name__ == "__main__":
 
-    a = ADB(debug=True)
-    # print(a.current_package_info())
+    ADB().auto_install(r"C:\Users\jianbing\Desktop\apks")

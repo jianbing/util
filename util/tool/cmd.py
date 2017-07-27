@@ -6,12 +6,7 @@ from collections import OrderedDict
 from prettytable import PrettyTable
 
 
-class Hotkey(object):
-    Enter = "Enter"
-
-
-class _Cmd(object):
-
+class _Cmd:
     def __init__(self, func, title, hotkey=None, args=None, cmd_help=None):
         self.__func = func
         self.__title = title
@@ -34,8 +29,7 @@ class _Cmd(object):
         return self.__title
 
 
-class _CmdCenter(object):
-
+class _CmdTool:
     def __init__(self):
         self.cmds = OrderedDict()
         self.cmds_hotkey = dict()
@@ -49,7 +43,7 @@ class _CmdCenter(object):
             else:
                 self.cmds_hotkey[cmd.hotkey] = cmd
 
-    def show_cmds(self):
+    def _show_cmds(self):
 
         table = PrettyTable(["指令", "热键"], right_padding_width=10)
         table.align["指令"] = "l"
@@ -60,7 +54,7 @@ class _CmdCenter(object):
         print(table)
 
     @staticmethod
-    def get_choice():
+    def _get_choice():
         choice = input("Make a choice\n")
         return choice
 
@@ -69,12 +63,10 @@ class _CmdCenter(object):
             try:
                 print('-' * 80)
                 print('请选择指令\n')
-                self.show_cmds()
+                self._show_cmds()
 
                 while True:
-                    choice = self.get_choice()
-                    if choice == "":
-                        choice = Hotkey.Enter
+                    choice = self._get_choice()
                     if choice not in self.cmds and choice not in self.cmds_hotkey:
                         print('选择错误，重新选择')
                         continue
@@ -93,14 +85,18 @@ class _CmdCenter(object):
                 import traceback
                 traceback.print_exc()
 
-CmdCenter = _CmdCenter()
+
+CmdTool = _CmdTool()
 
 
-def cmdline(title, hotkey=None):
-    def _cmdline(func):
-        CmdCenter.add_cmd(_Cmd(func, title, hotkey))
+def cmd(title, hotkey=None):
+    def _cmd(func):
+        CmdTool.add_cmd(_Cmd(func, title, hotkey))
 
-        def __cmdline(*args, **kwargs):
+        def __cmd(*args, **kwargs):
             return func(*args, **kwargs)
-        return __cmdline
-    return _cmdline
+
+        return __cmd
+    return _cmd
+
+

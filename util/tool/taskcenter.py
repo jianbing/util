@@ -4,7 +4,6 @@
 import queue
 import threading
 import time
-import types
 
 
 class TaskCenter(object):
@@ -21,48 +20,49 @@ class TaskCenter(object):
         :param allow_append_param:是否支持执行期间继续添加参数，如果True，则任务线程get不到参数时，会阻塞等待
         :return:
         """
-        self.__target = target
-        self.__param_list = param_list
-        self.__thread_num = thread_num
-        self.__param_queue = queue.Queue()
-        self.__allow_append_param = allow_append_param
-        self.__thread_dict = dict()
+        self._target = target
+        self._param_list = param_list
+        self._thread_num = thread_num
+        self._param_queue = queue.Queue()
+        self._allow_append_param = allow_append_param
+        self._thread_dict = dict()
 
-    def __init_param_queue(self):
+    def _init_param_queue(self):
         """初始化参数列表
 
         :return:
         """
-        for i in self.__param_list:
-            self.__param_queue.put(i)
-        if not self.__allow_append_param:
-            self.__add_finish_param()
+        for i in self._param_list:
+            self._param_queue.put(i)
+        if not self._allow_append_param:
+            self._add_finish_param()
 
-    def __add_finish_param(self):
+    def _add_finish_param(self):
         """设置完成任务的标记，任务线程接收到None时，会结束线程
 
         :return:
         """
-        for i in range(self.__thread_num):
-            self.__param_queue.put(None)
+        for i in range(self._thread_num):
+            self._param_queue.put("__finish__")
 
-    def __thread_func(self):
+    def _thread_func(self):
         while True:
-            args = self.__param_queue.get()
-            if args:
+            args = self._param_queue.get()
+            print("参数列表剩余：{}组".format(self._param_queue.qsize()))
+            if args is not "__finish__":
                 if isinstance(args, tuple):
-                    self.__target(*args)
+                    self._target(*args)
                 else:
-                    self.__target(args)
-                self.__param_queue.task_done()
+                    self._target(args)
+                self._param_queue.task_done()
             else:
                 break
 
     def start(self):
-        self.__init_param_queue()
-        for i in range(1, self.__thread_num+1):
-            self.__thread_dict[i] = threading.Thread(target=self.__thread_func)
-            self.__thread_dict[i].start()
+        self._init_param_queue()
+        for i in range(1, self._thread_num + 1):
+            self._thread_dict[i] = threading.Thread(target=self._thread_func)
+            self._thread_dict[i].start()
 
     def wait_to_finish(self):
         """调用后，会阻塞主线程，直到全部任务线程结束，不允许继续新增任务函数参数
@@ -70,44 +70,44 @@ class TaskCenter(object):
         :return:
         """
         self.finish_append_params()
-        for i in self.__thread_dict:
-            self.__thread_dict[i].join()
+        for i in self._thread_dict:
+            self._thread_dict[i].join()
 
     def append_params(self, param_list):
-        if self.__allow_append_param:
+        if self._allow_append_param:
             for i in param_list:
-                self.__param_queue.put(i)
+                self._param_queue.put(i)
         else:
             raise Exception("不可以添加新的参数列表")
 
     def finish_append_params(self):
-        self.__allow_append_param = False
-        self.__add_finish_param()
+        self._allow_append_param = False
+        self._add_finish_param()
 
 
 if __name__ == '__main__':
 
-    from utils.decorators import retry
+    from util.decorator import retry
+
 
     def to_download(astr):
         print("{0}___________".format(astr))
         time.sleep(1)
+
 
     start_time = time.time()
 
     params = []
     for i in range(2):
         for ii in range(6):
-            params.append("{0}_{1}".format(i,ii))
+            params.append("{0}_{1}".format(i, ii))
 
     params.append(("hello world",))
-
-    center = TaskCenter(target=retry()(to_download), param_list=params, thread_num=1)
+    print(len(params))
+    print(params)
+    center = TaskCenter(target=retry()(to_download), param_list=params, thread_num=2)
     center.start()
     center.wait_to_finish()
 
     print('finish')
-    print(time.time()-start_time)
-
-
-
+    print(time.time() - start_time)

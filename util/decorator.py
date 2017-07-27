@@ -6,7 +6,7 @@ import time
 import os
 import sys
 import platform
-
+import functools
 
 
 def chdir(dir_path=''):
@@ -16,6 +16,7 @@ def chdir(dir_path=''):
     :return:
     """
     def _chdir(func):
+        @functools.wraps(func)
         def __chdir(*args, **kwargs):
             os.chdir(dir_path)
             return func(*args, **kwargs)
@@ -30,12 +31,13 @@ def retry(times=5):
     :return:
     """
     def _retry(func):
+        @functools.wraps(func)
         def __retry(*args, **kwargs):
             retry_times = 0
             while retry_times <= times:
                 try:
-                    res = func(*args, **kwargs)
-                    return res
+                    result = func(*args, **kwargs)
+                    return result
                 except Exception:
                     print(sys.exc_info()[1])
                     retry_times += 1
@@ -57,11 +59,12 @@ def count_running_time(func):
     :param func:
     :return:
     """
+    @functools.wraps(func)
     def _count_running_time(*args, **kwargs):
         start = time.time()
-        res = func(*args, **kwargs)
+        result = func(*args, **kwargs)
         print(('cost time :{:.3f}'.format(time.time() - start)))
-        return res
+        return result
     return _count_running_time
 
 
@@ -71,6 +74,7 @@ def auto_next(func):
     :param func:
     :return:
     """
+    @functools.wraps(func)
     def _auto_next(*args, **kwargs):
         g = func(*args, **kwargs)
         next(g)
@@ -79,12 +83,13 @@ def auto_next(func):
 
 
 def check_adb(func):
+    @functools.wraps(func)
     def _check_adb(*args, **kwargs):
 
-        @run_once
+        @cache_result()
         def get_adb_devices():
-            from utils.common import execute_cmd
-            return execute_cmd('adb devices')
+            from util.common import run_cmd
+            return run_cmd('adb devices')
 
         result = get_adb_devices()
         if(len(result)) < 2:
@@ -94,23 +99,21 @@ def check_adb(func):
     return _check_adb
 
 
-def run_once(func):
-    """60秒内，直接返回结果，不再重复运行
+def cache_result(times=60):
+    def _wrap(func):
+        @functools.wraps(func)
+        def __wrap(*args, **kwargs):
 
-    :param func:
-    :return:
-    """
-    def _run_once(*args, **kwargs):
-        if (not _run_once.result) or (time.time() - _run_once.last_update_time > 60):
-            # print 'no result or >60'
-            _run_once.result = func(*args, **kwargs)
-            _run_once.last_update_time = time.time()
-        # else:
-        #     print 'has result {}'.format(_run_once.result)
-        return _run_once.result
-    _run_once.result = None
-    _run_once.last_update_time = 0
-    return _run_once
+            if hasattr(func, "__last_call_result__") and time.time() - func.__last_call_time__ < times:
+                print(func.__last_call_result__)
+                return func.__last_call_result__
+            else:
+                result = func(*args, **kwargs)
+                func.__last_call_result__ = result
+                func.__last_call_time__ = time.time()
+                return result
+        return __wrap
+    return _wrap
 
 
 def windows(func):
@@ -146,8 +149,12 @@ class Singleton(object):
         return self.__instance
 
 
-if __name__ == '__main__':
-
-    import datetime
-    print(datetime.datetime(2011, 4, 2, 13, 15, 16))
-    print(time.time())
+def simple_background_task(func):
+    @functools.wraps(func)
+    def _wrap(*args, **kwargs):
+        try:
+            threading.Thread(target=func, args=args, kwargs=kwargs).start()
+        except Exception:
+            import traceback
+            traceback.print_exc()
+    return _wrap
