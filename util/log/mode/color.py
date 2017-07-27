@@ -35,5 +35,3 @@ class ColorLogger(object):
         if level not in LogLevel.__dict__.values():
             raise Exception("使用了不存在的日志级别")
         cls.logger.setLevel(level)
-
-

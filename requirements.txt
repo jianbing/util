@@ -1,0 +1,4 @@
+PrettyTable
+paramiko
+Pillow
+colorama
