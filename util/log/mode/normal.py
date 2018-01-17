@@ -2,7 +2,7 @@
 # -*- coding: UTF-8 -*-
 import logging
 import sys
-from util.log.log_level import LogLevel
+from util.log.loglevel import LogLevel
 
 
 class _Logger(object):
@@ -17,7 +17,7 @@ class _Logger(object):
 
 class NormalLogger(object):
 
-    logger = _Logger('normal_logger', sys.stdout)
+    logger = _Logger('gj_normal_logger', sys.stdout)
 
     @classmethod
     def debug(cls, msg):

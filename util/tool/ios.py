@@ -1,5 +1,8 @@
 #! /usr/bin/env python
 # -*- coding: UTF-8 -*-
+"""
+Created by jianbing on 2017-11-06
+"""
 import os
 import plistlib
 import traceback
@@ -18,7 +21,3 @@ def get_bundle_identifier(file_path):
                         print(plist)
                         return
     raise Exception("can not find Info.plist")
-
-
-if __name__ == '__main__':
-    get_bundle_identifier(r"C:\Users\jianbing\Desktop\apks\ayy\Payload\sg.app")

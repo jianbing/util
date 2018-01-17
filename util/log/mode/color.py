@@ -1,34 +1,52 @@
 #! /usr/bin/env python
 # -*- coding: UTF-8 -*-
-import logging
-from util.log.log_level import LogLevel
+import os
 import sys
+import inspect
+import logging
 import logging.handlers
 from colorama import Fore, Style
+from util.log.loglevel import LogLevel
 
 
 class ColorLogger(object):
-    logger = logging.getLogger('color_logger')
-    logger.setLevel(logging.DEBUG)
+    logger = logging.getLogger('gj_color_logger')
+    logger.setLevel(logging.INFO)
     logger_handler = logging.StreamHandler(sys.stdout)
     logger_handler.setFormatter(logging.Formatter('%(asctime)s %(message)s'))
     logger.addHandler(logger_handler)
 
     @classmethod
     def debug(cls, msg):
-        cls.logger.debug("DEBUG " + str(msg))
+        stack = inspect.stack()
+        cls.logger.debug("DEBUG " + str(msg) +
+                         "    Func:{} Line:{} File:{}".format(stack[2].function, stack[2].lineno,
+                                                              os.path.basename(stack[2].filename)) +
+                         Style.RESET_ALL)
 
     @classmethod
     def info(cls, msg):
-        cls.logger.error(Fore.GREEN + "INFO " + str(msg) + Style.RESET_ALL)
+        stack = inspect.stack()
+        cls.logger.info(Fore.GREEN + "INFO " + str(msg) +
+                        "    Func:{} Line:{} File:{}".format(stack[2].function, stack[2].lineno,
+                                                             os.path.basename(stack[2].filename)) +
+                        Style.RESET_ALL)
 
     @classmethod
     def error(cls, msg):
-        cls.logger.error(Fore.RED + "ERROR " + str(msg) + Style.RESET_ALL)
+        stack = inspect.stack()
+        cls.logger.error(Fore.RED + "ERROR " + str(msg) +
+                         "    Func:{} Line:{} File:{}".format(stack[2].function, stack[2].lineno,
+                                                              os.path.basename(stack[2].filename)) +
+                         Style.RESET_ALL)
 
     @classmethod
     def warn(cls, msg):
-        cls.logger.warning(Fore.YELLOW + "WARNING " + str(msg) + Style.RESET_ALL)
+        stack = inspect.stack()
+        cls.logger.warning(Fore.YELLOW + "WARNING " + str(msg) +
+                           "    Func:{} Line:{} File:{}".format(stack[2].function, stack[2].lineno,
+                                                                os.path.basename(stack[2].filename)) +
+                           Style.RESET_ALL)
 
     @classmethod
     def set_level(cls, level):

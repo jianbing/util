@@ -1,15 +1,17 @@
 #! /usr/bin/env python
 # -*- coding: UTF-8 -*-
+"""
+Created by jianbing on 2017-11-06
+"""
 import os
 import re
 import subprocess
 import time
 from PIL import Image
 from util import log
-from util.common import get_desktop_dir, is_chinese, run_cmd
+from util.common import run_cmd, is_chinese, get_desktop_dir
 
-
-# adb install 常见安装错误
+AUTO_INSTALL_PATH = r'C:\\Users\\Bing\\Desktop\\apks'
 errors = {'INSTALL_FAILED_ALREADY_EXISTS': '程序已经存在',
           'INSTALL_DEVICES_NOT_FOUND': '找不到设备',
           'INSTALL_FAILED_DEVICE_OFFLINE': '设备离线',
@@ -44,15 +46,119 @@ errors = {'INSTALL_FAILED_ALREADY_EXISTS': '程序已经存在',
           }
 
 
-class ADB:
+class KeyCode:
+    KEYCODE_CALL = 5  # 拨号键
+    KEYCODE_ENDCALL = 6  # 挂机键
+    KEYCODE_HOME = 3  # Home键
+    KEYCODE_MENU = 82  # 菜单键
+    KEYCODE_BACK = 4  # 返回键
+    KEYCODE_SEARCH = 84  # 搜索键
+    KEYCODE_CAMERA = 27  # 拍照键
+    KEYCODE_FOCUS = 80  # 对焦键
+    KEYCODE_POWER = 26  # 电源键
+    KEYCODE_NOTIFICATION = 83  # 通知键
+    KEYCODE_MUTE = 91  # 话筒静音键
+    KEYCODE_VOLUME_MUTE = 164  # 扬声器静音键
+    KEYCODE_VOLUME_UP = 24  # 音量+键
+    KEYCODE_VOLUME_DOWN = 25  # 音量-键
+    KEYCODE_ENTER = 66  # 回车键
+    KEYCODE_ESCAPE = 111  # ESC键
+    KEYCODE_DPAD_CENTER = 23  # 导航键 >> 确定键
+    KEYCODE_DPAD_UP = 19  # 导航键 >> 向上
+    KEYCODE_DPAD_DOWN = 20  # 导航键 >> 向下
+    KEYCODE_DPAD_LEFT = 21  # 导航键 >> 向左
+    KEYCODE_DPAD_RIGHT = 22  # 导航键 >> 向右
+    KEYCODE_MOVE_HOME = 122  # 光标移动到开始键
+    KEYCODE_MOVE_END = 123  # 光标移动到末尾键
+    KEYCODE_PAGE_UP = 92  # 向上翻页键
+    KEYCODE_PAGE_DOWN = 93  # 向下翻页键
+    KEYCODE_DEL = 67  # 退格键
+    KEYCODE_FORWARD_DEL = 112  # 删除键
+    KEYCODE_INSERT = 124  # 插入键
+    KEYCODE_TAB = 61  # Tab键
+    KEYCODE_NUM_LOCK = 143  # 小键盘锁
+    KEYCODE_CAPS_LOCK = 115  # 大写锁定键
+    KEYCODE_BREAK = 121  # Break / Pause键
+    KEYCODE_SCROLL_LOCK = 116  # 滚动锁定键
+    KEYCODE_ZOOM_IN = 168  # 放大键
+    KEYCODE_ZOOM_OUT = 169  # 缩小键
+    KEYCODE_0 = 7
+    KEYCODE_1 = 8
+    KEYCODE_2 = 9
+    KEYCODE_3 = 10
+    KEYCODE_4 = 11
+    KEYCODE_5 = 12
+    KEYCODE_6 = 13
+    KEYCODE_7 = 14
+    KEYCODE_8 = 15
+    KEYCODE_9 = 16
+    KEYCODE_A = 29
+    KEYCODE_B = 30
+    KEYCODE_C = 31
+    KEYCODE_D = 32
+    KEYCODE_E = 33
+    KEYCODE_F = 34
+    KEYCODE_G = 35
+    KEYCODE_H = 36
+    KEYCODE_I = 37
+    KEYCODE_J = 38
+    KEYCODE_K = 39
+    KEYCODE_L = 40
+    KEYCODE_M = 41
+    KEYCODE_N = 42
+    KEYCODE_O = 43
+    KEYCODE_P = 44
+    KEYCODE_Q = 45
+    KEYCODE_R = 46
+    KEYCODE_S = 47
+    KEYCODE_T = 48
+    KEYCODE_U = 49
+    KEYCODE_V = 50
+    KEYCODE_W = 51
+    KEYCODE_X = 52
+    KEYCODE_Y = 53
+    KEYCODE_Z = 54
+    KEYCODE_PLUS = 81  # +
+    KEYCODE_MINUS = 69  # -
+    KEYCODE_STAR = 17  # *
+    KEYCODE_SLASH = 76  # /
+    KEYCODE_EQUALS = 70  # =
+    KEYCODE_AT = 77  # @
+    KEYCODE_POUND = 18  # #
+    KEYCODE_APOSTROPHE = 75  # '
+    KEYCODE_BACKSLASH = 73  # \
+    KEYCODE_COMMA = 55  # ,
+    KEYCODE_PERIOD = 56  # .
+    KEYCODE_LEFT_BRACKET = 71  # [
+    KEYCODE_RIGHT_BRACKET = 72  # ]
+    KEYCODE_SEMICOLON = 74  # ;
+    KEYCODE_GRAVE = 68  # `
+    KEYCODE_SPACE = 62  # 空格键
+    KEYCODE_MEDIA_PLAY = 126  # 多媒体键 >> 播放
+    KEYCODE_MEDIA_STOP = 86  # 多媒体键 >> 停止
+    KEYCODE_MEDIA_PAUSE = 127  # 多媒体键 >> 暂停
+    KEYCODE_MEDIA_PLAY_PAUSE = 85  # 多媒体键 >> 播放 / 暂停
+    KEYCODE_MEDIA_FAST_FORWARD = 90  # 多媒体键 >> 快进
+    KEYCODE_MEDIA_REWIND = 89  # 多媒体键 >> 快退
+    KEYCODE_MEDIA_NEXT = 87  # 多媒体键 >> 下一首
+    KEYCODE_MEDIA_PREVIOUS = 88  # 多媒体键 >> 上一首
+    KEYCODE_MEDIA_CLOSE = 128  # 多媒体键 >> 关闭
+    KEYCODE_MEDIA_EJECT = 129  # 多媒体键 >> 弹出
+    KEYCODE_MEDIA_RECORD = 130  # 多媒体键 >> 录音
 
-    def __init__(self, serial=None, adb_remote=None):
+
+class ADB:
+    def __init__(self, serial=None, adb_remote=None, debug=False):
 
         self._serial = serial
+        self._debug = debug
         self._adb_remote = adb_remote
         self._adb_name = ""
         self._findstr = ""
         self._init_adb()
+
+        self._last_update_cpu_time = None
+        self._last_cpu = None
 
     def _init_adb(self):
 
@@ -94,6 +200,7 @@ class ADB:
             cmd = " ".join([self._adb_name] + list(args))
 
         stdout, stderr = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate()
+        # print(cmd)
         log.debug("cmd is {}".format(cmd))
         log.debug("stdout is {}".format(stdout.strip()))
 
@@ -135,7 +242,7 @@ class ADB:
         :return:
         """
         result = self.adb_shell("wm size")[0]
-        result = result[result.find('size: ') + 6:]   # 1080x1800
+        result = result[result.find('size: ') + 6:]  # 1080x1800
         result = result.split('x')
         return result
 
@@ -159,10 +266,6 @@ class ADB:
     def android_version(self):
         return self.adb_shell('getprop ro.build.version.release')[0]
 
-    @property
-    def wlan_ip(self):
-        return self.adb_shell('getprop', 'dhcp.wlan0.ipaddress')[0]
-
     def screenshot(self, screenshot_dir, info):
         """screencap方式截图
 
@@ -171,12 +274,12 @@ class ADB:
         :return:
         """
         start_time = time.time()
-        log.info("开始截图...")
+        print("开始截图...")
         self.adb_shell("screencap -p /sdcard/screenshot.png")
         temp = time.strftime("%Y-%m-%d-%H-%M-%S", time.localtime(start_time))
         filename = '{0}-{1}.png'.format(temp, info)
         self.adb('pull /sdcard/screenshot.png {}\{}'.format(screenshot_dir, filename))
-        log.info('截图已保存')
+        print('截图已保存')
         return os.path.join(screenshot_dir, filename)
 
     def screenshot_ex(self, screenshot_dir, info='shot', compress=True, openfile=True):
@@ -201,7 +304,7 @@ class ADB:
             os.remove(result)
 
             if openfile:
-                cmd = r"mspaint {0}".format(new_file)   # 用画图工具打开
+                cmd = r"mspaint {0}".format(new_file)  # 用画图工具打开
                 os.popen(cmd)
 
     def get_mem_using(self, package_name=None):
@@ -236,8 +339,30 @@ class ADB:
         try:
             cpu = float(result[:result.find('%')].strip())
         except:
-            log.error(result)
+            print(result)
         return cpu
+
+    def get_cpu_using_ex(self):
+        cmd = 'cat /proc/{}/stat'.format(self.current_pid)
+        time_now = time.time()
+        cpu = sum([int(i) for i in self.adb_shell(cmd)[0].split()[13:17]])
+
+        if not self._last_cpu:
+            self._last_update_cpu_time = time_now
+            self._last_cpu = cpu
+            return 0
+        else:
+            cpu_use = cpu - self._last_cpu
+            self._last_cpu = cpu
+            result = float("{:.2f}".format(cpu_use / (time_now - self._last_update_cpu_time) / 10))
+
+            self._last_update_cpu_time = time_now
+
+            if result < 0:
+                log.warn("采集到的CPU占用数据异常：{}".format(result))
+                return 0
+
+            return result
 
     @property
     def current_package_info(self):
@@ -245,6 +370,11 @@ class ADB:
         for line in result:
             if line.strip().startswith('ACTIVITY'):
                 return line.split()[1].split('/')
+
+    @property
+    def current_pid(self):
+        result = self.adb_shell("ps|{} {}".format(self._findstr, self.current_package_name))
+        return result[0].split()[1]
 
     @property
     def current_package_name(self):
@@ -300,7 +430,7 @@ class ADB:
         version_name = result[result.index("versionName=\'") + 13:result.index("\' platformBuildVersionName")]
         return package_name, version_code, version_name
 
-    def auto_install(self, path):
+    def auto_install(self, path=AUTO_INSTALL_PATH):
         """path可以是目录，自动安装目录下的全部apk，如果已经存在，则先卸载
            path也可以是具体apk路径
 
@@ -377,7 +507,8 @@ class ADB:
         apk_path = result[0].strip().replace('package:', '')
         print('apk位置是：{0}'.format(apk_path))
         print('开始导出apk')
-        apk_name = "{}{}.apk".format(self.current_package_name, time.strftime("%Y-%m-%d-%H-%M-%S", time.localtime(time.time())))
+        apk_name = "{}{}.apk".format(self.current_package_name,
+                                     time.strftime("%Y-%m-%d-%H-%M-%S", time.localtime(time.time())))
         self.adb("pull {0} {1}\{2}".format(apk_path, path, apk_name))
         print("备份完成")
 
@@ -414,12 +545,7 @@ class ADB:
         print('执行完成')
 
     def start_app(self, component):
-        self.adb_shell("am start -n {}".format(component))
+        log.info(self.adb_shell("am start -n {}".format(component)))
 
     def stop_app(self, package):
-        self.adb_shell('am force-stop {}'.format(package))
-
-
-if __name__ == "__main__":
-
-    ADB().auto_install(r"C:\Users\jianbing\Desktop\apks")
+        log.info(self.adb_shell('am force-stop {}'.format(package)))

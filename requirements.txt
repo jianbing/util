@@ -1,3 +1,4 @@
+requests
 PrettyTable
 paramiko
 Pillow

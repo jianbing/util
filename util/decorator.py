@@ -36,8 +36,8 @@ def retry(times=5):
             retry_times = 0
             while retry_times <= times:
                 try:
-                    result = func(*args, **kwargs)
-                    return result
+                    res = func(*args, **kwargs)
+                    return res
                 except Exception:
                     print(sys.exc_info()[1])
                     retry_times += 1
@@ -62,9 +62,9 @@ def count_running_time(func):
     @functools.wraps(func)
     def _count_running_time(*args, **kwargs):
         start = time.time()
-        result = func(*args, **kwargs)
+        res = func(*args, **kwargs)
         print(('cost time :{:.3f}'.format(time.time() - start)))
-        return result
+        return res
     return _count_running_time
 
 
@@ -152,9 +152,6 @@ class Singleton(object):
 def simple_background_task(func):
     @functools.wraps(func)
     def _wrap(*args, **kwargs):
-        try:
-            threading.Thread(target=func, args=args, kwargs=kwargs).start()
-        except Exception:
-            import traceback
-            traceback.print_exc()
+        threading.Thread(target=func, args=args, kwargs=kwargs).start()
+        return
     return _wrap

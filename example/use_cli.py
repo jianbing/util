@@ -1,17 +1,17 @@
 #! /usr/bin/env python
 # -*- coding: UTF-8 -*-
-from util.tool.cmd import cmd, CmdTool
+from util.tool.cli import cli
 
 if __name__ == '__main__':
 
-    @cmd("hello方法")
+    @cli.add("hello方法")
     def hello():
         print("hello")
 
 
-    @cmd("hi方法")
+    @cli.add("hi方法")
     def hi():
         print("hi")
 
 
-    CmdTool.work()
+    cli.run()

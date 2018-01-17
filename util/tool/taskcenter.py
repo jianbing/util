@@ -6,7 +6,7 @@ import threading
 import time
 
 
-class TaskCenter(object):
+class TaskCenter:
     """
     任务执行器，多线程方式
     """
@@ -60,7 +60,7 @@ class TaskCenter(object):
 
     def start(self):
         self._init_param_queue()
-        for i in range(1, self._thread_num + 1):
+        for i in range(1, self._thread_num+1):
             self._thread_dict[i] = threading.Thread(target=self._thread_func)
             self._thread_dict[i].start()
 
@@ -89,18 +89,16 @@ if __name__ == '__main__':
 
     from util.decorator import retry
 
-
     def to_download(astr):
         print("{0}___________".format(astr))
         time.sleep(1)
-
 
     start_time = time.time()
 
     params = []
     for i in range(2):
         for ii in range(6):
-            params.append("{0}_{1}".format(i, ii))
+            params.append("{0}_{1}".format(i,ii))
 
     params.append(("hello world",))
     print(len(params))
@@ -110,4 +108,7 @@ if __name__ == '__main__':
     center.wait_to_finish()
 
     print('finish')
-    print(time.time() - start_time)
+    print(time.time()-start_time)
+
+
+

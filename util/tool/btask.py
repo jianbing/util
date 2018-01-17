@@ -8,7 +8,7 @@ import ctypes
 """
 
 
-class TaskService(object):
+class TaskService:
     _tasks = dict()
 
     @classmethod
@@ -30,6 +30,8 @@ class TaskService(object):
         exc_type = SystemExit
         tid = ctypes.c_long(tid)
         res = ctypes.pythonapi.PyThreadState_SetAsyncExc(tid, ctypes.py_object(exc_type))
+        del cls._tasks[task_name]
+
         if res == 0:
             raise ValueError("invalid thread id，the task may be already stop")
         elif res != 1:
@@ -37,7 +39,6 @@ class TaskService(object):
             # and you should call it again with exc=NULL to revert the effect"""
             ctypes.pythonapi.PyThreadState_SetAsyncExc(tid, None)
             raise SystemError("PyThreadState_SetAsyncExc failed")
-        del cls._tasks[task_name]
 
 
 def background_task(task_name):
@@ -58,22 +59,4 @@ def background_task(task_name):
 
     return warp
 
-
-if __name__ == '__main__':
-
-    import time
-
-
-    @background_task("hi")
-    def hi(name):
-        while 1:
-            print("hi, {}".format(name))
-            time.sleep(1)
-
-
-    hi("jianbing")
-
-    time.sleep(1.5)
-    TaskService.stop("hi")
-    print("stop")
 

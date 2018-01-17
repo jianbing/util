@@ -2,9 +2,40 @@
 # -*- coding: UTF-8 -*-
 import hashlib
 import subprocess
+import zipfile
 import requests
 from util.decorator import *
 from util.tool.file import File
+
+
+def remove_bom(file_path):
+    """移除utf-8文件的bom字节
+
+    :param file_path:
+    :return:
+    """
+    ''''''
+    bom = b'\xef\xbb\xbf'
+    exist_bom = lambda s: True if s == bom else False
+
+    f = open(file_path, 'rb')
+    if exist_bom(f.read(3)):
+        body = f.read()
+        f.close()
+        with open(file_path, 'wb') as f:
+            f.write(body)
+
+
+def is_utf_bom(file_path):
+    """判断文件是否是utf-8-bom
+
+    :param file_path:
+    :return:
+    """
+    with open(file_path, 'rb') as f:
+        if f.read(3) == b'\xef\xbb\xbf':
+            return True
+        return False
 
 
 def run_cmd(cmd, print_result=False, shell=True):
@@ -120,16 +151,10 @@ def get_files_by_suffix_ex(path: str, suffixes: tuple = ("txt", "xml"), traverse
             file_suffix = os.path.splitext(file)[1][1:].lower()  # 后缀名
             if file_suffix in suffixes:
                 file_list.append(File(os.path.join(root, file)))
-        if traverse:
+        if not traverse:
             return file_list
 
     return file_list
-
-
-def rename(name):
-    return name.replace("sg", "灵趣").replace("0", "零").replace("1", "一").replace("2", "二").replace("3", "三").replace("4",
-                                                                                                                    "四").replace(
-        "5", "五").replace("6", "六").replace("7", "七").replace("8", "八").replace("9", "九")
 
 
 def unzip(file_path):
@@ -141,7 +166,6 @@ def unzip(file_path):
     folder = os.path.splitext(file_path)[0]  # 建立和文件同名的文件夹
     if not os.path.exists(folder):
         os.mkdir(folder)
-    import zipfile
     zip_file = zipfile.ZipFile(file_path, 'r')
     zip_file.extractall(folder)
     zip_file.close()
@@ -212,24 +236,8 @@ def get_url_file_size(url, proxies=None):
     r = requests.head(url=url, proxies=proxies, timeout=3.0)
 
     while r.is_redirect:  # 如果有重定向
-        # print 'got'
-        # print r.headers['Location']
         r = requests.head(url=r.headers['Location'], proxies=proxies, timeout=3.0)
-    # print r.headers
-    # print r.headers['Content-Length']
     return int(r.headers['Content-Length']) / 1024
-
-
-def svn_update(path):
-    command = r'TortoiseProc.exe /command:update /path:"{0}" /closeonend:0'.format(path)
-    print(command)
-    run_cmd(command, True)
-
-
-def svn_revert(path):
-    command = r'TortoiseProc.exe /command:revert /path:"{0}" /closeonend:0'.format(path)
-    print(command)
-    run_cmd(command, True)
 
 
 @retry(times=5)
@@ -297,14 +305,16 @@ def is_port_used(port=5037, kill=False):
         print('{}端口没有被占用'.format(port))
 
 
-def get_screen_scale(x, y):
+def get_screen_scale(x: int, y: int):
     """通过屏幕分辨率，返回屏幕比例
 
     :param x:
     :param y:
     :return:
     """
-    scale = int(y) / int(x)
+    x = int(x)
+    y = int(y)
+    scale = x / y
     if scale == 16 / 9:
         return 16, 9
     elif scale == 4 / 3:
@@ -314,15 +324,15 @@ def get_screen_scale(x, y):
     elif scale == 16 / 10:
         return 16, 10
     else:
-        raise Exception("None scale match")
+        def gcd(a, b):
+            if b == 0:
+                return a
+            else:
+                return gcd(b, a % b)
 
-
-def get_root_dir():
-    """获取程序入口文件所在的目录
-
-    :return:
-    """
-    return os.path.dirname(os.path.realpath(sys.argv[0]))
+        scale = gcd(x, y)
+        print("没有找到合适的比例")
+        return x / scale, y / scale
 
 
 def search_keyword_from_dirs(path, keyword, suffix=("txt", "xml"), traverse=True, length=100):
@@ -347,3 +357,7 @@ def search_keyword_from_dirs(path, keyword, suffix=("txt", "xml"), traverse=True
             print(file)
             print(("#" * 100))
             print(("_" * 100))
+
+
+if __name__ == '__main__':
+    print(get_screen_scale(1280, 720))

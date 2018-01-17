@@ -5,8 +5,7 @@ import time
 import shutil
 
 
-class File(object):
-
+class File:
     def __init__(self, file_path):
         self._file_path = file_path
 
@@ -42,3 +41,6 @@ class File(object):
 
     def move(self, dst):
         shutil.move(self._file_path, dst)
+
+    def copy(self, dst):
+        shutil.copy2(self._file_path, dst)
