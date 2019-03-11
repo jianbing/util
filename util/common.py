@@ -6,6 +6,22 @@ import zipfile
 import requests
 from util.decorator import *
 from util.tool.file import File
+import threading
+
+
+def delay(secs):
+    """和sleep类似，多一个显示剩余sleep时间
+
+    :param secs:
+    :return:
+    """
+    secs = int(secs)
+    for i in reversed(list(range(secs))):
+        sys.stdout.write("\rsleep {}s, left {}s".format(secs, i))
+        sys.stdout.flush()
+        time.sleep(1)
+    sys.stdout.write(",sleep over")
+    sys.stdout.write("\n")
 
 
 def remove_bom(file_path):
@@ -57,6 +73,10 @@ def run_cmd(cmd, print_result=False, shell=True):
         print(stderr)
     result = [i.decode('utf-8') for i in stdout.splitlines()]
     return result
+
+
+def run_in_new_thread(func, *args, **kwargs):
+    threading.Thread(target=func, args=args, kwargs=kwargs).start()
 
 
 def get_local_ip():
@@ -157,6 +177,21 @@ def get_files_by_suffix_ex(path: str, suffixes: tuple = ("txt", "xml"), traverse
     return file_list
 
 
+def zip_dir(dir_path, zip_filename):
+    files_list = []
+    if os.path.isfile(dir_path):
+        files_list.append(dir_path)
+    else:
+        for root, dirs, files in os.walk(dir_path):
+            for name in files:
+                files_list.append(os.path.join(root, name))
+
+    zf = zipfile.ZipFile(zip_filename, "w", zipfile.zlib.DEFLATED)
+    for tar in files_list:
+        zf.write(tar, tar[len(dir_path):])
+    zf.close()
+
+
 def unzip(file_path):
     """解压文件，解压到压缩包所在目录的同名文件夹中
 
@@ -238,6 +273,21 @@ def get_url_file_size(url, proxies=None):
     while r.is_redirect:  # 如果有重定向
         r = requests.head(url=r.headers['Location'], proxies=proxies, timeout=3.0)
     return int(r.headers['Content-Length']) / 1024
+
+
+def start_file(path):
+    import os
+    assert os.path.exists(path), "路径不存在:{}".format(path)
+    assert os.path.isfile(path), "路径不能是文件夹".format(path)
+    dir_path, file_name = os.path.split(path)
+
+    def job():
+        cwd = os.getcwd()
+        os.chdir(dir_path)
+        run_cmd(r"start {}".format(file_name))
+        os.chdir(cwd)
+
+    run_in_new_thread(job)
 
 
 @retry(times=5)
@@ -357,7 +407,3 @@ def search_keyword_from_dirs(path, keyword, suffix=("txt", "xml"), traverse=True
             print(file)
             print(("#" * 100))
             print(("_" * 100))
-
-
-if __name__ == '__main__':
-    print(get_screen_scale(1280, 720))

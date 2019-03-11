@@ -2,14 +2,13 @@
 # -*- coding: UTF-8 -*-
 
 from util.tool.adb import ADB
-from util import log
-from util.log.loglevel import LogLevel
+from util.tool import log
 
 if __name__ == '__main__':
 
-    log.set_level(LogLevel.INFO)
+    log.set_level_to_info()
 
     adb = ADB()
     print(adb.android_version)
     print(adb.current_package_info)
-    print(adb.screen_resolution)
+    print(adb.resolution)

@@ -1,12 +1,10 @@
 #! /usr/bin/env python
 # -*- coding: UTF-8 -*-
-from util import log
-from util.log.loglevel import LogLevel
+from util.tool import log
 
 if __name__ == '__main__':
-
-    log.set_level(LogLevel.INFO)
+    log.set_level_to_info()
     log.debug("debug msg")
-    log.error("error msg")
     log.info("info msg")
     log.warn("warn msg")
+    log.error("error msg")

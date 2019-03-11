@@ -7,10 +7,6 @@ from prettytable import PrettyTable
 import datetime
 
 
-class Hotkey:
-    Enter = "Enter"
-
-
 class _Command:
     def __init__(self, func, title, hot_key=None, need_confirm=False):
         self.func = func
@@ -24,7 +20,7 @@ class _Command:
         choice = input("输入yes确认执行 {} ：".format(self.title))
         if choice == "yes":
             return True
-        print("没有输入yes，确认没有通过")
+        print("没有输入yes，没有通过确认")
         return False
 
     def run(self):
@@ -62,8 +58,6 @@ class _CliTool:
     def choice_cmd(self):
         while 1:
             cmd_id = input("选择指令：")
-            if cmd_id == "":
-                cmd_id = Hotkey.Enter
             if cmd_id not in self.cmds and cmd_id not in self.hotkeys:
                 print('输入的ID或者热键不存在，请重新选择')
                 continue

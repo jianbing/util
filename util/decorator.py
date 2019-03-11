@@ -15,12 +15,15 @@ def chdir(dir_path=''):
     :param dir_path:
     :return:
     """
+
     def _chdir(func):
         @functools.wraps(func)
         def __chdir(*args, **kwargs):
             os.chdir(dir_path)
             return func(*args, **kwargs)
+
         return __chdir
+
     return _chdir
 
 
@@ -30,6 +33,7 @@ def retry(times=5):
     :param times: 最多重试次数
     :return:
     """
+
     def _retry(func):
         @functools.wraps(func)
         def __retry(*args, **kwargs):
@@ -49,7 +53,9 @@ def retry(times=5):
                 import traceback
                 traceback.print_exc()
                 return None
+
         return __retry
+
     return _retry
 
 
@@ -59,12 +65,14 @@ def count_running_time(func):
     :param func:
     :return:
     """
+
     @functools.wraps(func)
     def _count_running_time(*args, **kwargs):
         start = time.time()
         res = func(*args, **kwargs)
         print(('cost time :{:.3f}'.format(time.time() - start)))
         return res
+
     return _count_running_time
 
 
@@ -74,28 +82,30 @@ def auto_next(func):
     :param func:
     :return:
     """
+
     @functools.wraps(func)
     def _auto_next(*args, **kwargs):
         g = func(*args, **kwargs)
         next(g)
         return g
+
     return _auto_next
 
 
 def check_adb(func):
     @functools.wraps(func)
     def _check_adb(*args, **kwargs):
-
         @cache_result()
         def get_adb_devices():
             from util.common import run_cmd
             return run_cmd('adb devices')
 
         result = get_adb_devices()
-        if(len(result)) < 2:
+        if (len(result)) < 2:
             print('当前没有连接上手机')
             return None
         return func(*args, **kwargs)
+
     return _check_adb
 
 
@@ -112,24 +122,22 @@ def cache_result(times=60):
                 func.__last_call_result__ = result
                 func.__last_call_time__ = time.time()
                 return result
+
         return __wrap
+
     return _wrap
 
 
-def windows(func):
-    """如果非windows系统，抛出异常
-
-    :param func:
-    :return:
-    """
+def windows(obj):
+    """如果非windows系统，抛出异常"""
 
     if not platform.platform().startswith('Windows'):
-        raise Exception("This function just can be used in windows.")
-    return func
+        raise Exception("仅支持在Windows下使用")
+    return obj
 
 
-class Singleton(object):
-    """单例模式，python最佳的单例方式还是通过模块来实现
+class Singleton:
+    """单例模式的一种其实，其实Python最佳的单例方式还是通过模块来实现
 
     用法如下:
         @Singleton
@@ -154,4 +162,5 @@ def simple_background_task(func):
     def _wrap(*args, **kwargs):
         threading.Thread(target=func, args=args, kwargs=kwargs).start()
         return
+
     return _wrap

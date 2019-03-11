@@ -25,7 +25,8 @@ class TaskService:
     @classmethod
     def stop(cls, task_name):
         if task_name not in cls._tasks:
-            raise Exception("task {} is not exists".format(task_name))
+            print("task {} is not exists".format(task_name))
+            return
         tid = cls._tasks[task_name]
         exc_type = SystemExit
         tid = ctypes.c_long(tid)

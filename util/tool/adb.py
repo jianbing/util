@@ -1,188 +1,65 @@
 #! /usr/bin/env python
 # -*- coding: UTF-8 -*-
-"""
-Created by jianbing on 2017-11-06
-"""
+
 import os
 import re
 import subprocess
 import time
+import traceback
+from contextlib import contextmanager
 from PIL import Image
-from util import log
+from util.decorator import windows
+from util.tool import log
 from util.common import run_cmd, is_chinese, get_desktop_dir
-
-AUTO_INSTALL_PATH = r'C:\\Users\\Bing\\Desktop\\apks'
-errors = {'INSTALL_FAILED_ALREADY_EXISTS': '程序已经存在',
-          'INSTALL_DEVICES_NOT_FOUND': '找不到设备',
-          'INSTALL_FAILED_DEVICE_OFFLINE': '设备离线',
-          'INSTALL_FAILED_INVALID_APK': '无效的APK',
-          'INSTALL_FAILED_INVALID_URI': '无效的链接',
-          'INSTALL_FAILED_INSUFFICIENT_STORAGE': '没有足够的存储空间',
-          'INSTALL_FAILED_DUPLICATE_PACKAGE': '已存在同名程序',
-          'INSTALL_FAILED_NO_SHARED_USER': '要求的共享用户不存在',
-          'INSTALL_FAILED_UPDATE_INCOMPATIBLE': '版本不能共存',
-          'INSTALL_FAILED_SHARED_USER_INCOMPATIBLE': '需求的共享用户签名错误',
-          'INSTALL_FAILED_MISSING_SHARED_LIBRARY': '需求的共享库已丢失',
-          'INSTALL_FAILED_REPLACE_COULDNT_DELETE': '需求的共享库无效',
-          'INSTALL_FAILED_DEXOPT': 'dex优化验证失败',
-          'INSTALL_FAILED_DEVICE_NOSPACE': '手机存储空间不足导致apk拷贝失败',
-          'INSTALL_FAILED_DEVICE_COPY_FAILED': '文件拷贝失败',
-          'INSTALL_FAILED_OLDER_SDK': '系统版本过旧',
-          'INSTALL_FAILED_CONFLICTING_PROVIDER': '存在同名的内容提供者',
-          'INSTALL_FAILED_NEWER_SDK': '系统版本过新',
-          'INSTALL_FAILED_TEST_ONLY': '调用者不被允许测试的测试程序',
-          'INSTALL_FAILED_CPU_ABI_INCOMPATIBLE': '包含的本机代码不兼容',
-          'CPU_ABIINSTALL_FAILED_MISSING_FEATURE': '使用了一个无效的特性',
-          'INSTALL_FAILED_CONTAINER_ERROR': 'SD卡访问失败',
-          'INSTALL_FAILED_INVALID_INSTALL_LOCATION': '无效的安装路径',
-          'INSTALL_FAILED_MEDIA_UNAVAILABLE': 'SD卡不存在',
-          'INSTALL_FAILED_INTERNAL_ERROR': '系统问题导致安装失败',
-          'INSTALL_PARSE_FAILED_NO_CERTIFICATES': '文件未通过认证 >> 设置开启未知来源',
-          'INSTALL_PARSE_FAILED_INCONSISTENT_CERTIFICATES': '文件认证不一致 >> 先卸载原来的再安装',
-          'INSTALL_FAILED_INVALID_ZIP_FILE': '非法的zip文件 >> 先卸载原来的再安装',
-          'INSTALL_CANCELED_BY_USER': '需要用户确认才可进行安装',
-          'INSTALL_FAILED_VERIFICATION_FAILURE': '验证失败 >> 尝试重启手机',
-          'DEFAULT': '未知错误'
-          }
+from functools import lru_cache
 
 
-class KeyCode:
-    KEYCODE_CALL = 5  # 拨号键
-    KEYCODE_ENDCALL = 6  # 挂机键
-    KEYCODE_HOME = 3  # Home键
-    KEYCODE_MENU = 82  # 菜单键
-    KEYCODE_BACK = 4  # 返回键
-    KEYCODE_SEARCH = 84  # 搜索键
-    KEYCODE_CAMERA = 27  # 拍照键
-    KEYCODE_FOCUS = 80  # 对焦键
-    KEYCODE_POWER = 26  # 电源键
-    KEYCODE_NOTIFICATION = 83  # 通知键
-    KEYCODE_MUTE = 91  # 话筒静音键
-    KEYCODE_VOLUME_MUTE = 164  # 扬声器静音键
-    KEYCODE_VOLUME_UP = 24  # 音量+键
-    KEYCODE_VOLUME_DOWN = 25  # 音量-键
-    KEYCODE_ENTER = 66  # 回车键
-    KEYCODE_ESCAPE = 111  # ESC键
-    KEYCODE_DPAD_CENTER = 23  # 导航键 >> 确定键
-    KEYCODE_DPAD_UP = 19  # 导航键 >> 向上
-    KEYCODE_DPAD_DOWN = 20  # 导航键 >> 向下
-    KEYCODE_DPAD_LEFT = 21  # 导航键 >> 向左
-    KEYCODE_DPAD_RIGHT = 22  # 导航键 >> 向右
-    KEYCODE_MOVE_HOME = 122  # 光标移动到开始键
-    KEYCODE_MOVE_END = 123  # 光标移动到末尾键
-    KEYCODE_PAGE_UP = 92  # 向上翻页键
-    KEYCODE_PAGE_DOWN = 93  # 向下翻页键
-    KEYCODE_DEL = 67  # 退格键
-    KEYCODE_FORWARD_DEL = 112  # 删除键
-    KEYCODE_INSERT = 124  # 插入键
-    KEYCODE_TAB = 61  # Tab键
-    KEYCODE_NUM_LOCK = 143  # 小键盘锁
-    KEYCODE_CAPS_LOCK = 115  # 大写锁定键
-    KEYCODE_BREAK = 121  # Break / Pause键
-    KEYCODE_SCROLL_LOCK = 116  # 滚动锁定键
-    KEYCODE_ZOOM_IN = 168  # 放大键
-    KEYCODE_ZOOM_OUT = 169  # 缩小键
-    KEYCODE_0 = 7
-    KEYCODE_1 = 8
-    KEYCODE_2 = 9
-    KEYCODE_3 = 10
-    KEYCODE_4 = 11
-    KEYCODE_5 = 12
-    KEYCODE_6 = 13
-    KEYCODE_7 = 14
-    KEYCODE_8 = 15
-    KEYCODE_9 = 16
-    KEYCODE_A = 29
-    KEYCODE_B = 30
-    KEYCODE_C = 31
-    KEYCODE_D = 32
-    KEYCODE_E = 33
-    KEYCODE_F = 34
-    KEYCODE_G = 35
-    KEYCODE_H = 36
-    KEYCODE_I = 37
-    KEYCODE_J = 38
-    KEYCODE_K = 39
-    KEYCODE_L = 40
-    KEYCODE_M = 41
-    KEYCODE_N = 42
-    KEYCODE_O = 43
-    KEYCODE_P = 44
-    KEYCODE_Q = 45
-    KEYCODE_R = 46
-    KEYCODE_S = 47
-    KEYCODE_T = 48
-    KEYCODE_U = 49
-    KEYCODE_V = 50
-    KEYCODE_W = 51
-    KEYCODE_X = 52
-    KEYCODE_Y = 53
-    KEYCODE_Z = 54
-    KEYCODE_PLUS = 81  # +
-    KEYCODE_MINUS = 69  # -
-    KEYCODE_STAR = 17  # *
-    KEYCODE_SLASH = 76  # /
-    KEYCODE_EQUALS = 70  # =
-    KEYCODE_AT = 77  # @
-    KEYCODE_POUND = 18  # #
-    KEYCODE_APOSTROPHE = 75  # '
-    KEYCODE_BACKSLASH = 73  # \
-    KEYCODE_COMMA = 55  # ,
-    KEYCODE_PERIOD = 56  # .
-    KEYCODE_LEFT_BRACKET = 71  # [
-    KEYCODE_RIGHT_BRACKET = 72  # ]
-    KEYCODE_SEMICOLON = 74  # ;
-    KEYCODE_GRAVE = 68  # `
-    KEYCODE_SPACE = 62  # 空格键
-    KEYCODE_MEDIA_PLAY = 126  # 多媒体键 >> 播放
-    KEYCODE_MEDIA_STOP = 86  # 多媒体键 >> 停止
-    KEYCODE_MEDIA_PAUSE = 127  # 多媒体键 >> 暂停
-    KEYCODE_MEDIA_PLAY_PAUSE = 85  # 多媒体键 >> 播放 / 暂停
-    KEYCODE_MEDIA_FAST_FORWARD = 90  # 多媒体键 >> 快进
-    KEYCODE_MEDIA_REWIND = 89  # 多媒体键 >> 快退
-    KEYCODE_MEDIA_NEXT = 87  # 多媒体键 >> 下一首
-    KEYCODE_MEDIA_PREVIOUS = 88  # 多媒体键 >> 上一首
-    KEYCODE_MEDIA_CLOSE = 128  # 多媒体键 >> 关闭
-    KEYCODE_MEDIA_EJECT = 129  # 多媒体键 >> 弹出
-    KEYCODE_MEDIA_RECORD = 130  # 多媒体键 >> 录音
-
-
+@windows
 class ADB:
-    def __init__(self, serial=None, adb_remote=None, debug=False):
+    def __init__(self, serial=None, adb_remote=None, chdir=""):
 
         self._serial = serial
-        self._debug = debug
         self._adb_remote = adb_remote
-        self._adb_name = ""
-        self._findstr = ""
+        self._adb_name = "adb.exe"
+        self._findstr = "findstr"
+        self._chidr = chdir
+
+        self._func_data = dict()  # 存储各函数运行时的临时数据
         self._init_adb()
 
-        self._last_update_cpu_time = None
-        self._last_cpu = None
+    @contextmanager
+    def _change_dir(self):
+        cwd_backup = os.getcwd()
+        if self._chidr:
+            os.chdir(self._chidr)
+        yield
+        os.chdir(cwd_backup)
 
     def _init_adb(self):
 
-        self._adb_name = "adb.exe" if os.name == 'nt' else "adb"
-        self._findstr = "findstr" if os.name == 'nt' else "grep"
-
         if self._adb_remote:
-            log.info(subprocess.check_output("{} connect {}".format(self._adb_name, self._adb_remote)))
+            with self._change_dir():
+                log.info(subprocess.check_output("{} connect {}".format(self._adb_name, self._adb_remote)))
 
         if not self._serial:
             devices_info = self.devices()
             log.debug(devices_info)
 
             if not devices_info:
-                raise Exception("no phone is connecting.")
+                raise Exception("当前没有已连接的安卓设备")
             if len(devices_info) > 1:
                 log.error(devices_info)
-                print("当前通过数据线连接的手机有：")
+                print("当前通过数据线连接的安卓设备有")
                 for i in devices_info:
                     print(i)
                 print("")
-                raise Exception("同时有多个手机连接着电脑，需要指定serialno.")
+                raise Exception("同时有多个安卓设备连接着电脑，需要指定serialno.")
             else:
                 self._serial = devices_info[0]
+
+            # get_app_cpu_using 使用
+            self._func_data['cpu_cost'] = None
+            self._func_data['cpu_cost_update_time'] = None
 
     def is_connect(self):
         return self.serial in self.devices()
@@ -198,15 +75,12 @@ class ADB:
             cmd = " ".join([self._adb_name, '-s', self._serial] + list(args))
         else:
             cmd = " ".join([self._adb_name] + list(args))
-
-        stdout, stderr = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate()
-        # print(cmd)
+        with self._change_dir():
+            stdout, stderr = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE,
+                                              stderr=subprocess.PIPE).communicate()
         log.debug("cmd is {}".format(cmd))
         log.debug("stdout is {}".format(stdout.strip()))
-
-        if stderr:
-            log.error(stderr)
-
+        log.debug("stderr is {}".format(stderr.decode('gbk')))
         result = [i.decode() for i in stdout.splitlines()]
         return [i for i in result if i and not i.startswith("* daemon")]  # 过滤掉空的行，以及adb启动消息
 
@@ -236,7 +110,8 @@ class ADB:
         return [i.split()[0] for i in result if not i.startswith('List') and not i.startswith("adb")]
 
     @property
-    def screen_resolution(self):
+    @lru_cache()
+    def resolution(self):
         """手机屏幕分辨率
 
         :return:
@@ -244,13 +119,23 @@ class ADB:
         result = self.adb_shell("wm size")[0]
         result = result[result.find('size: ') + 6:]  # 1080x1800
         result = result.split('x')
-        return result
+        return [int(i) for i in result]
+
+    @property
+    @lru_cache()
+    def orientation(self):
+        for i in self.adb_shell('dumpsys', 'display'):
+            index = i.find("orientation")
+            if index != -1:
+                return int(i[index + 12:index + 13])
+        raise Exception("找不到orientation")
 
     @property
     def adb_remote(self):
         return self._adb_remote
 
     @property
+    @lru_cache()
     def version(self):
         """adb 版本信息
 
@@ -266,7 +151,18 @@ class ADB:
     def android_version(self):
         return self.adb_shell('getprop ro.build.version.release')[0]
 
-    def screenshot(self, screenshot_dir, info):
+    @property
+    def wlan_ip(self):
+        """获取IP地址，基于 adb shell ifconfig
+
+        :return:
+        """
+        for i in self.adb_shell('ifconfig'):
+            i = i.strip()
+            if i.startswith("inet addr") and i.find("Bcast") != -1:
+                return i[i.find("inet addr:") + len("inet addr:"): i.find("Bcast")].strip()
+
+    def screenshot(self, screenshot_dir, info="N"):
         """screencap方式截图
 
         :param screenshot_dir:
@@ -276,57 +172,65 @@ class ADB:
         start_time = time.time()
         print("开始截图...")
         self.adb_shell("screencap -p /sdcard/screenshot.png")
-        temp = time.strftime("%Y-%m-%d-%H-%M-%S", time.localtime(start_time))
-        filename = '{0}-{1}.png'.format(temp, info)
+        filename = '{0}-{1}.png'.format(time.strftime("%Y-%m-%d-%H-%M-%S", time.localtime(start_time)), info)
         self.adb('pull /sdcard/screenshot.png {}\{}'.format(screenshot_dir, filename))
         print('截图已保存')
         return os.path.join(screenshot_dir, filename)
 
-    def screenshot_ex(self, screenshot_dir, info='shot', compress=True, openfile=True):
-        """扩展take_screenshot函数，加入是否压缩和是否打开文件
+    def screenshot_ex(self, screenshot_dir, info='shot', compress=(0.5, 0.5)):
+        """扩展screenshot函数，加入是否压缩和是否打开文件
 
         :param screenshot_dir:
         :param info:
         :param compress:
-        :param openfile:
         :return:
         """
-        result = self.screenshot(screenshot_dir, info)
-        print('result is {0}'.format(os.path.normpath(result)))
+        png_file = self.screenshot(screenshot_dir, info)
+        print('screenshot is {0}'.format(os.path.normpath(png_file)))
         if compress:
-            im = Image.open(result)
+            im = Image.open(png_file)
             im_size = im.size
-            im = im.resize((int(im_size[0] / 2), int(im_size[1] / 2)), Image.ANTIALIAS)  # 尺寸减少一半
+            im = im.resize((int(im_size[0] * compress[0]), int(im_size[1] * compress[1])), Image.ANTIALIAS)  # 尺寸减少一半
             # im = im.rotate(270, expand=1)   # 旋转角度是逆时针的，如果没expand，会出现旋转后，部分图像丢失
 
-            new_file = result.replace(r".png", r".jpg")  # 修改格式，减少图片大小
-            im.save(new_file)
-            os.remove(result)
+            compress_file = png_file.replace(r".png", r"_small.png")
+            im.save(compress_file)
+            return compress_file
 
-            if openfile:
-                cmd = r"mspaint {0}".format(new_file)  # 用画图工具打开
-                os.popen(cmd)
+    def screenshot_by_minicap(self, screenshot_dir, file_name="", scale=1.0):
 
-    def get_mem_using(self, package_name=None):
+        start_time = time.time()
+        w, h = self.resolution
+        r = self.orientation
+        params = '{x}x{y}@{rx}x{ry}/{r}'.format(x=w, y=h, rx=int(w * scale), ry=int(h * scale), r=r * 90)
+        self.adb_shell(
+            '"LD_LIBRARY_PATH=/data/local/tmp /data/local/tmp/minicap -s -P {} > /sdcard/minicap-screenshot.jpg"'.format(
+                params))
+        if not file_name:
+            file_name = '{0}.jpg'.format(time.strftime("%Y-%m-%d-%H-%M-%S", time.localtime(start_time)))
+        self.adb('pull /sdcard/minicap-screenshot.jpg {}\{}'.format(screenshot_dir, file_name))
+
+    def get_app_mem_using(self, package_name=None):
         """获取内存占用
 
         :param package_name: app的包名
         :return: 返回app的内存总占用，单位MB
         """
-        if not package_name:
-            package_name = self.current_package_name
-        result = self.adb_shell("dumpsys meminfo {}".format(package_name))
-        info = re.search('TOTAL\W+\d+', str(result)).group()
-        result = ''
         try:
+            if not package_name:
+                package_name = self.current_package_name
+                log.debug(package_name)
+            result = self.adb_shell("dumpsys meminfo {}".format(package_name))
+            info = re.search('TOTAL\W+\d+', str(result)).group()
             result = info.split()
-        except Exception as e:
-            print(info)
-            print(e)
-        return int(int(result[-1]) / 1000)
+            return int(int(result[-1]) / 1000)
+        except:
+            import traceback
+            traceback.print_exc()
+            return 0
 
-    def get_cpu_using(self):
-        """获取手机当前CPU的总占用
+    def get_total_cpu_using(self):
+        """获取手机当前CPU的总占用，不太准确，延迟很大
 
         :return:
         """
@@ -342,38 +246,50 @@ class ADB:
             print(result)
         return cpu
 
-    def get_cpu_using_ex(self):
-        cmd = 'cat /proc/{}/stat'.format(self.current_pid)
-        time_now = time.time()
-        cpu = sum([int(i) for i in self.adb_shell(cmd)[0].split()[13:17]])
+    def get_app_cpu_using(self, pid=None):
+        """采集当前运行的app的CPU占用，首次调用会延迟一秒统计出数据再返回
 
-        if not self._last_cpu:
-            self._last_update_cpu_time = time_now
-            self._last_cpu = cpu
+        :param pid:
+        :return:
+        """
+
+        if not pid:
+            pid = self.current_pid
+        cmd = 'cat /proc/{}/stat'.format(pid)
+        now = time.time()
+        try:
+            cpu = sum([int(i) for i in self.adb_shell(cmd)[0].split()[13:17]])
+
+            if not self._func_data['cpu_cost']:
+                self._func_data['cpu_cost'] = cpu
+                self._func_data['cpu_cost_update_time'] = now
+                time.sleep(1)
+                return self.get_app_cpu_using(pid)
+            else:
+                cpu_use = cpu - self._func_data['cpu_cost']
+                self._func_data['cpu_cost'] = cpu
+                self._func_data['cpu_cost_update_time'] = now
+                result = float("{:.2f}".format(cpu_use / (now - self._func_data['cpu_cost_update_time']) / 10))
+
+                if result < 0:
+                    log.error("采集到的CPU占用数据异常：{}".format(result))
+                    return 0
+                return result
+        except:
+            traceback.print_exc()
             return 0
-        else:
-            cpu_use = cpu - self._last_cpu
-            self._last_cpu = cpu
-            result = float("{:.2f}".format(cpu_use / (time_now - self._last_update_cpu_time) / 10))
-
-            self._last_update_cpu_time = time_now
-
-            if result < 0:
-                log.warn("采集到的CPU占用数据异常：{}".format(result))
-                return 0
-
-            return result
 
     @property
     def current_package_info(self):
-        result = self.adb_shell('dumpsys activity top')
-        for line in result:
-            if line.strip().startswith('ACTIVITY'):
-                return line.split()[1].split('/')
+        result = self.adb_shell('dumpsys activity activities | {} mResumedActivity'.format(self._findstr))
+        assert len(result) == 1, result
+        return result[0].split()[-2].split("/")
 
     @property
+    @lru_cache()
     def current_pid(self):
         result = self.adb_shell("ps|{} {}".format(self._findstr, self.current_package_name))
+        log.info(result)
         return result[0].split()[1]
 
     @property
@@ -393,9 +309,21 @@ class ADB:
         return self.current_package_info[1]
 
     def pull_file(self, remote, local):
+        """从手机导出文件到本地 eg  pull_file("/sdcard/screenshot.png", "1.png")
+
+        :param remote:
+        :param local:
+        :return:
+        """
         return self.adb('pull', remote, local)
 
     def push_file(self, local, remote):
+        """上传文件到手机
+
+        :param local:
+        :param remote:
+        :return:
+        """
         return self.adb('push', local, remote)
 
     @staticmethod
@@ -430,7 +358,7 @@ class ADB:
         version_name = result[result.index("versionName=\'") + 13:result.index("\' platformBuildVersionName")]
         return package_name, version_code, version_name
 
-    def auto_install(self, path=AUTO_INSTALL_PATH):
+    def auto_install(self, path):
         """path可以是目录，自动安装目录下的全部apk，如果已经存在，则先卸载
            path也可以是具体apk路径
 
@@ -438,7 +366,7 @@ class ADB:
         :return:
         """
         if not os.path.exists(path):
-            print('目录或者不存在')
+            print('不存在的路径：{}'.format(path))
             return
 
         if os.path.isdir(path):
@@ -515,7 +443,7 @@ class ADB:
     def start_monkey(self, pct_touch=100, pct_motion=0, throttle=200, v='-v -v', times=100, logfile=None):
 
         if pct_touch + pct_motion != 100:
-            raise Exception("sum fo action pct should be 100")
+            raise Exception("Monkey各行为的配比总和超过了100")
 
         cmd = [
             'monkey',
